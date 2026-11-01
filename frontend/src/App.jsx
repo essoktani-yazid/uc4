@@ -862,7 +862,7 @@ export default function App() {
                 <div>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
                     <div>
-                      <h3 className="font-semibold text-slate-900 text-sm">Supervision de Production en Temps Réel</h3>
+                      <h3 className="font-semibold text-slate-900 text-sm">Supervision de Production</h3>
                       <p className="text-xs text-slate-500 mt-0.5">Profil journalier solaire (24h passées) et projections d'inférence (6h futures)</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1700,12 +1700,12 @@ export default function App() {
                 )}
                 </div>
 
-                {/* Real-time reactive status bar (No submit button per user request) */}
+                {/* Reactive status bar */}
                 <div className="mt-5 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="font-semibold text-teal-900">
-                      Inférence continue en temps réel active
+                      Inférence continue active
                     </span>
                     <span className="text-slate-400">·</span>
                     <span className="text-[11px] text-slate-500 font-mono">
@@ -2020,11 +2020,11 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Statut Automatique Temps Réel (Bouton annulé) */}
+                {/* Statut Automatique (Bouton annulé) */}
                 <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 text-teal-700 font-semibold">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Analyse CNN automatique en temps réel
+                    Analyse CNN automatique
                   </span>
                   <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                     Latence ~15ms
@@ -2992,12 +2992,12 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Realtime Footer Banner */}
+                {/* Footer Banner */}
                 <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1.5 text-teal-700 font-semibold">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      Fusion multimodale en temps réel
+                      Fusion multimodale
                     </span>
                     <span className="text-slate-300">|</span>
                     <span className="text-slate-500 font-mono text-[11px]">
@@ -3224,7 +3224,7 @@ export default function App() {
                       </div>
                       <p className="text-xs font-medium text-slate-700">Calcul multimodal automatique en continu...</p>
                       <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
-                        Modifiez les variables d'entrée ou téléversez une image pour visualiser la comparaison en temps réel.
+                        Modifiez les variables d'entrée ou téléversez une image pour visualiser la comparaison.
                       </p>
                     </div>
                   )}
@@ -3358,11 +3358,11 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Statut Temps Réel Automatique */}
+                {/* Statut Automatique */}
                 <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 text-teal-700 font-semibold">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Vecteur nuageux en temps réel
+                    Vecteur nuageux actif
                   </span>
                   <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                     CNN 32x32x2
@@ -3513,11 +3513,11 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Statut Temps Réel Automatique */}
+                {/* Statut Automatique */}
                 <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 text-teal-700 font-semibold">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Décodage récurrent en temps réel
+                    Décodage récurrent actif
                   </span>
                   <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                     6 pas auto-décodés
@@ -3694,7 +3694,7 @@ export default function App() {
             <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
               <div>
                 <h3 className="font-semibold text-slate-900 text-sm">Journal de Télémétrie Système</h3>
-                <p className="text-[11px] text-slate-500">Supervision en direct des pipelines Keras</p>
+                <p className="text-[11px] text-slate-500">Supervision des pipelines Keras</p>
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}

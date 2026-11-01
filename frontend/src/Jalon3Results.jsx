@@ -242,7 +242,7 @@ export default function Jalon3Results() {
     };
   }, []);
 
-  // Debounce pour inférence temps réel ultra-fluide
+  // Debounce pour inférence réactive ultra-fluide
   const prodDebounce = useRef(null);
   const runRealtimeProd = (idx) => {
     if (prodDebounce.current) clearTimeout(prodDebounce.current);
@@ -434,15 +434,10 @@ export default function Jalon3Results() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {prodLoading ? (
+                  {prodLoading && (
                     <span className="flex items-center gap-1 text-[10px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
                       <span className="w-2 h-2 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
                       <span>Calcul...</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span>Temps Réel</span>
                     </span>
                   )}
                   <span className="text-[10px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded font-semibold">
@@ -860,15 +855,10 @@ export default function Jalon3Results() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {skyLoading ? (
+                  {skyLoading && (
                     <span className="flex items-center gap-1 text-[10px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
                       <span className="w-2 h-2 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
                       <span>Calcul...</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span>Temps Réel</span>
                     </span>
                   )}
                   <span className="text-[10px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded font-semibold">

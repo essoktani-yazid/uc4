@@ -69,7 +69,7 @@ export default function ThermographyWorkbench() {
   const animMeanTemp = useAnimatedNumber(result?.temperatures_celsius?.original_mean, 650, 1);
   const animDeltaTemp = useAnimatedNumber(result?.temperatures_celsius?.max_delta_temp, 650, 1);
 
-  // Debounce pour inférence temps réel ultra-fluide sur sliders
+  // Debounce pour inférence réactive ultra-fluide sur sliders
   const debounceTimer = useRef(null);
   const runRealtime = (idx, model, upload) => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -183,15 +183,10 @@ export default function ThermographyWorkbench() {
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              {loading ? (
+              {loading && (
                 <span className="flex items-center gap-1 text-[10px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
                   <span className="w-2 h-2 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
                   <span>Calcul...</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Temps Réel</span>
                 </span>
               )}
               <span className="text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-semibold">
@@ -430,7 +425,7 @@ export default function ThermographyWorkbench() {
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-slate-100">
             <div>
               <h3 className="font-semibold text-slate-900 text-sm">
-                Banc d'Essai Thermographique (Test en Direct)
+                Banc d'Essai Thermographique
               </h3>
               <p className="text-[11px] text-slate-500">
                 Échantillon #{result?.index ?? sampleIndex} · {modelVariant.replace('_', ' ').toUpperCase()}
