@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// Fonction d'interpolation cubique fluide (ease-out cubic)
+// Interpolation cubique fluide (ease-out cubic)
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -96,7 +96,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Debounce réactif pour éviter les rafales d'appels
+  // Debounce réactif
   const debounceRef = useRef(null);
 
   const fetchSimulation = (hHours, mType, gStrat, sId) => {
@@ -130,7 +130,6 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
     }, 50);
   };
 
-  // Déclenchement réactif à chaque changement d'un paramètre
   useEffect(() => {
     fetchSimulation(historyHours, modelType, generationStrategy, scenarioId);
   }, [historyHours, modelType, generationStrategy, scenarioId]);
@@ -149,42 +148,43 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
 
   const cap = capaciteNominale || 50.0;
 
+  // Calcul du delta au pic (H3) entre MLP et modèle séquentiel
+  const deltaPeak =
+    result?.mlp_ref_mw && result?.sequential_mw
+      ? (result.mlp_ref_mw[2] - result.sequential_mw[2]).toFixed(1)
+      : '0.0';
+
   return (
-    <div className="space-y-5 animate-fade-in">
-      {/* En-tête du Banc d'Essai Jalon 4 */}
-      <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 font-bold text-sm">
+    <div className="space-y-4 animate-fade-in">
+      {/* En-tête Compact & Structuré */}
+      <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 font-bold text-xs">
             <i className="fa-solid fa-clock-rotate-left"></i>
           </div>
-          <div>
-            <h2 className="font-semibold text-slate-900 text-sm">
-              Banc d'Essai Séries Temporelles &amp; Mémoire Récurrente (Jalon 4)
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Comparaison rigoureuse : Réseaux Récurrents (RNN / LSTM / GRU) vs MLP à fenêtre fixe vs Persistance
-            </p>
-          </div>
+          <h2 className="font-semibold text-slate-900 text-sm">
+            Banc d'Essai Séries Temporelles Récurrentes (Jalon 4)
+          </h2>
         </div>
 
         <div className="flex items-center gap-2">
           {loading && (
-            <span className="flex items-center gap-1.5 text-[11px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full">
-              <span className="w-2 h-2 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
+            <span className="flex items-center gap-1.5 text-[11px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
               <span>Calcul...</span>
             </span>
           )}
-          <span className="text-[11px] font-mono bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-full font-semibold">
-            Centrale SolarDrâa (50 MWc)
+          <span className="text-[11px] font-mono bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-semibold">
+            Site A (50 MWc)
           </span>
-          <span className="text-[11px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full font-semibold">
-            Site A — Ouarzazate
+          <span className="text-[11px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded font-semibold">
+            {modelType.toUpperCase()} {generationStrategy === 'seq2seq' ? 'Seq2Seq' : 'Direct'} · L={historyHours}h
           </span>
         </div>
       </div>
 
       {error && (
-        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between animate-fade-in">
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">
           <span>{error}</span>
           <button
             type="button"
@@ -196,42 +196,35 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
         </div>
       )}
 
-      {/* Grille Principale Bento (5 cols gauche / 7 cols droite) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+      {/* Grille Bento 100% Tests (5 cols Gauche / 7 cols Droite) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
         {/* ========================================================================= */}
         {/* PANNEAU GAUCHE : Configuration de la Séquence Temporelle (Les Entrées)   */}
         {/* ========================================================================= */}
-        <div className="xl:col-span-5 flex flex-col gap-4">
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="font-semibold text-slate-900 text-sm">
-                  Configuration de la Séquence Temporelle
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Profondeur de mémoire, cellule récurrente et scénario métier
-                </p>
-              </div>
-              <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+        <div className="xl:col-span-5 flex flex-col gap-3.5">
+          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 space-y-3.5">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <h3 className="font-semibold text-slate-900 text-xs uppercase tracking-wider font-mono">
+                Configuration de la Séquence
+              </h3>
+              <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                 Entrées
               </span>
             </div>
 
             {/* 1. Sélecteur de la Longueur d'Historique (L) */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-700">
-                  1. Longueur d'Historique (L)
-                </label>
-                <span className="text-[10px] font-mono text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+              <div className="flex items-center justify-between mb-1.5 text-xs">
+                <span className="font-semibold text-slate-700">1. Longueur d'Historique (L) :</span>
+                <span className="font-mono text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200 text-[10px]">
                   {historyHours === 168 ? '168h (1 semaine)' : `${historyHours} heures`}
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-1.5">
                 {[
-                  { hours: 6, label: '6h', sub: 'Court terme' },
-                  { hours: 24, label: '24h', sub: 'Cycle 1J' },
-                  { hours: 48, label: '48h', sub: 'Cycle 2J' },
+                  { hours: 6, label: '6h', sub: 'Court' },
+                  { hours: 24, label: '24h', sub: '1 jour' },
+                  { hours: 48, label: '48h', sub: '2 jours' },
                   { hours: 168, label: '168h', sub: '1 semaine' },
                 ].map((item) => {
                   const isSelected = historyHours === item.hours;
@@ -240,16 +233,16 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                       key={item.hours}
                       type="button"
                       onClick={() => setHistoryHours(item.hours)}
-                      className={`py-2 px-2 rounded-lg border text-center transition-all duration-300 ease-out ${
+                      className={`py-2 px-1 rounded-lg border text-center transition-all duration-200 ${
                         isSelected
-                          ? 'bg-teal-600 text-white border-teal-600 shadow-sm font-semibold scale-[1.01]'
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs font-semibold scale-[1.01]'
                           : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
                       }`}
                     >
-                      <div className="text-xs font-bold">{item.label}</div>
+                      <div className="text-xs font-bold font-mono">{item.label}</div>
                       <div
-                        className={`text-[9px] mt-0.5 ${
-                          isSelected ? 'text-teal-100' : 'text-slate-500'
+                        className={`text-[9px] ${
+                          isSelected ? 'text-teal-100' : 'text-slate-400'
                         }`}
                       >
                         {item.sub}
@@ -262,29 +255,14 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
 
             {/* 2. Sélecteur du Modèle Récurrent */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                2. Type de Cellule Récurrente
-              </label>
-              <div className="grid grid-cols-3 gap-2">
+              <span className="font-semibold text-slate-700 text-xs block mb-1.5">
+                2. Cellule Récurrente :
+              </span>
+              <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  {
-                    id: 'rnn',
-                    name: 'RNN Simple',
-                    badge: 'Elman vanilla',
-                    desc: '1 porte · Évanouissement gradient',
-                  },
-                  {
-                    id: 'lstm',
-                    name: 'LSTM',
-                    badge: '3 portes + C_t',
-                    desc: 'Mémoire long terme robuste',
-                  },
-                  {
-                    id: 'gru',
-                    name: 'GRU',
-                    badge: '2 portes (Reset/Up)',
-                    desc: 'Modèle retenu · Plus compact',
-                  },
+                  { id: 'rnn', name: 'RNN Simple', tag: 'Elman · 3,1k' },
+                  { id: 'lstm', name: 'LSTM', tag: '3 portes · 9,9k' },
+                  { id: 'gru', name: 'GRU', tag: '2 portes · 9,4k' },
                 ].map((item) => {
                   const isSelected = modelType === item.id;
                   return (
@@ -292,90 +270,77 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                       key={item.id}
                       type="button"
                       onClick={() => setModelType(item.id)}
-                      className={`p-2.5 rounded-lg border text-left transition-all duration-300 ease-out ${
+                      className={`py-2 px-2 rounded-lg border text-center transition-all duration-200 ${
                         isSelected
-                          ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
+                          ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
                       }`}
                     >
-                      <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                        <span>{item.name}</span>
-                        {isSelected && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
-                        )}
-                      </div>
-                      <div className="text-[10px] font-mono text-teal-700 mt-0.5">
-                        {item.badge}
-                      </div>
-                      <div className="text-[9px] text-slate-500 mt-1 leading-tight">
-                        {item.desc}
-                      </div>
+                      <div className="text-xs font-bold">{item.name}</div>
+                      <div className="text-[9px] font-mono text-slate-500 mt-0.5">{item.tag}</div>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* 3. Stratégie de Génération (Interrupteur Many-to-One vs Many-to-Many) */}
+            {/* 3. Stratégie de Génération */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                3. Stratégie de Génération des Horizons
-              </label>
-              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+              <span className="font-semibold text-slate-700 text-xs block mb-1.5">
+                3. Stratégie de Génération :
+              </span>
+              <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200/80">
                 <button
                   type="button"
                   onClick={() => setGenerationStrategy('direct')}
-                  className={`py-2 px-3 rounded-lg text-xs transition-all duration-300 text-center ${
+                  className={`py-1.5 px-2 rounded-md text-xs transition-all text-center ${
                     generationStrategy === 'direct'
                       ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <div className="font-semibold text-xs">Sortie Directe</div>
-                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">Many-to-One (6 d'un coup)</div>
+                  <span className="font-semibold text-xs">Sortie Directe</span>
+                  <span className="block text-[9px] text-slate-400 font-mono">Many-to-One (6 d'un coup)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setGenerationStrategy('seq2seq')}
-                  className={`py-2 px-3 rounded-lg text-xs transition-all duration-300 text-center ${
+                  className={`py-1.5 px-2 rounded-md text-xs transition-all text-center ${
                     generationStrategy === 'seq2seq'
                       ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <div className="font-semibold text-xs">Encodeur-Décodeur</div>
-                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">Many-to-Many (Pas-à-pas)</div>
+                  <span className="font-semibold text-xs">Encodeur-Décodeur</span>
+                  <span className="block text-[9px] text-slate-400 font-mono">Many-to-Many (Pas-à-pas)</span>
                 </button>
               </div>
             </div>
 
-            {/* 4. Nouveaux Profils Types d'Historique (Scénarios Métiers) */}
+            {/* 4. Profils Types d'Historique (Scénarios Métiers) */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                4. Profils Types d'Historique (Scénarios Métiers)
-              </label>
-              <div className="space-y-2">
+              <span className="font-semibold text-slate-700 text-xs block mb-1.5">
+                4. Scénarios Métiers d'Historique :
+              </span>
+              <div className="space-y-1.5">
                 {[
                   {
                     id: 'poussiere_veille',
                     title: 'Poussière de la veille',
-                    tag: 'Tempête de sable J-1',
-                    desc: 'Chute de puissance hier sous le vent de sable. Ciel bleu aujourd’hui, mais panneaux salis : le MLP se fait piéger, le RNN mémorise la poussière.',
+                    chips: ['Tempête J-1', 'Soiling 18%', 'Ciel J clair'],
                     icon: 'fa-wind',
                   },
                   {
                     id: 'encrassement_progressif',
                     title: 'Encrassement progressif',
-                    tag: 'Dérive lente multi-jours',
-                    desc: '25 jours sans nettoyage. Baisse continue de 2,5 % tous les 3 jours : seuls les historiques longs (48h/168h) détectent la tendance séculaire.',
+                    chips: ['25J sans lavage', 'Dérive continue', 'Multi-jours'],
                     icon: 'fa-broom',
                   },
                   {
                     id: 'cycle_nominal',
                     title: 'Cycle Solaire Nominal',
-                    tag: 'Régime estival 50 MWc',
-                    desc: 'Ciel clair sans perturbation, captation optimale et écrêtage à 50 MWc. Baseline de stabilité.',
+                    chips: ['Ciel dégagé', '50 MWc', 'Écrêtage stable'],
                     icon: 'fa-sun',
                   },
                 ].map((sc) => {
@@ -385,31 +350,29 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                       key={sc.id}
                       type="button"
                       onClick={() => setScenarioId(sc.id)}
-                      className={`w-full p-3 rounded-xl border text-left transition-all duration-300 ease-out flex items-start gap-3 ${
+                      className={`w-full p-2.5 rounded-lg border text-left transition-all duration-200 flex items-center justify-between ${
                         isSelected
-                          ? 'bg-teal-50 border-teal-400 ring-1 ring-teal-300 scale-[1.01]'
+                          ? 'bg-teal-50 border-teal-400 ring-1 ring-teal-300'
                           : 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                       }`}
                     >
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs mt-0.5 shrink-0 ${
-                          isSelected
-                            ? 'bg-teal-600 text-white'
-                            : 'bg-white text-slate-600 border border-slate-200'
-                        }`}
-                      >
-                        <i className={`fa-solid ${sc.icon}`}></i>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <i className={`fa-solid ${sc.icon} text-xs ${isSelected ? 'text-teal-700' : 'text-slate-500'}`}></i>
+                        <span className="font-bold text-xs text-slate-900">{sc.title}</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-bold text-xs text-slate-900">{sc.title}</span>
-                          <span className="text-[10px] font-mono text-teal-700 font-semibold bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                            {sc.tag}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {sc.chips.map((chip, i) => (
+                          <span
+                            key={i}
+                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                              isSelected
+                                ? 'bg-white text-teal-800 border-teal-200 font-semibold'
+                                : 'bg-slate-100 text-slate-500 border-slate-200'
+                            }`}
+                          >
+                            {chip}
                           </span>
-                        </div>
-                        <p className="text-[11px] text-slate-600 mt-1 leading-snug">
-                          {sc.desc}
-                        </p>
+                        ))}
                       </div>
                     </button>
                   );
@@ -417,26 +380,12 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
               </div>
             </div>
 
-            {/* Note Théorique & Dimensionnement pour le Jury */}
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
-              <div className="flex items-center justify-between font-semibold text-slate-800">
-                <span>Vérification Théorique (Question Sujet) :</span>
-                <span className="text-[10px] font-mono bg-teal-50 text-teal-700 px-2 py-0.5 rounded border border-teal-200 font-bold">
-                  Keras Vérifié
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-600 space-y-1 font-mono">
-                <div>
-                  • Tenseur annuel (48h, 6 var) :{' '}
-                  <span className="font-bold text-slate-800">8 707 × 48 × 6</span> ={' '}
-                  <span className="text-teal-800 font-bold">10,03 Mo</span> en float32.
-                </div>
-                <div>
-                  • Calibrage budget :{' '}
-                  <span className="font-bold text-slate-800">LSTM 32</span> (~9 889 params) vs{' '}
-                  <span className="font-bold text-slate-800">GRU 36</span> (9 433 params).
-                </div>
-              </div>
+            {/* Note Télémétrie Vérifiée (Jury) */}
+            <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-[10px] font-mono text-slate-600 flex items-center justify-between">
+              <span>Tenseur d'entrée : <strong>10,03 Mo</strong> (8 707×48×6 float32)</span>
+              <span className="text-teal-700 font-semibold bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                LSTM 9,9k ≈ GRU 9,4k
+              </span>
             </div>
           </div>
         </div>
@@ -444,46 +393,41 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
         {/* ========================================================================= */}
         {/* PANNEAU DROIT : Comparaison & Évaluation (Les Résultats)                 */}
         {/* ========================================================================= */}
-        <div className="xl:col-span-7 flex flex-col gap-4">
-          {/* 1. Carte Principale : Graphique de Comparaison Dynamique (t+1h à t+6h) */}
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3.5 border-b border-slate-100">
-              <div>
-                <h3 className="font-semibold text-slate-900 text-sm">
-                  Graphique de Comparaison Dynamique (t+1h à t+6h)
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Modèle séquentiel sélectionné vs MLP de référence vs Persistance Intelligente
-                </p>
-              </div>
+        <div className="xl:col-span-7 flex flex-col gap-3.5">
+          {/* 1. Graphique de Comparaison Dynamique (t+1h à t+6h) */}
+          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+              <h3 className="font-semibold text-slate-900 text-xs uppercase tracking-wider font-mono">
+                Comparaison Dynamique (t+1h à t+6h)
+              </h3>
 
-              {/* Légende interactive */}
-              <div className="flex flex-wrap items-center gap-3 text-[11px] font-medium">
-                <span className="flex items-center gap-1.5 text-teal-800 font-bold">
-                  <span className="w-3 h-1.5 rounded-full bg-teal-600"></span>
-                  <span>{modelType.toUpperCase()} ({generationStrategy === 'seq2seq' ? 'Seq2Seq' : 'Direct'})</span>
+              {/* Légende Compacte */}
+              <div className="flex items-center gap-3 text-[11px] font-mono font-medium">
+                <span className="flex items-center gap-1 text-teal-800 font-bold">
+                  <span className="w-2.5 h-1 rounded-full bg-teal-600"></span>
+                  <span>{modelType.toUpperCase()}</span>
                 </span>
-                <span className="flex items-center gap-1.5 text-amber-800 font-semibold">
-                  <span className="w-3 h-0.5 bg-amber-600 border-b border-dashed border-amber-600"></span>
-                  <span>MLP de référence</span>
+                <span className="flex items-center gap-1 text-amber-800 font-semibold">
+                  <span className="w-2.5 h-0.5 bg-amber-600"></span>
+                  <span>MLP Réf.</span>
                 </span>
-                <span className="flex items-center gap-1.5 text-slate-500">
-                  <span className="w-3 h-0.5 bg-slate-400 border-b border-dotted border-slate-500"></span>
+                <span className="flex items-center gap-1 text-slate-500">
+                  <span className="w-2.5 h-0.5 bg-slate-400"></span>
                   <span>Persistance</span>
                 </span>
-                <span className="flex items-center gap-1.5 text-emerald-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span className="flex items-center gap-1 text-emerald-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                   <span>Réel</span>
                 </span>
               </div>
             </div>
 
-            {/* Visualisation SVG Responsive avec Morphing Fluide */}
-            <div className="w-full h-56 relative select-none">
-              <svg className="w-full h-full overflow-visible" viewBox="0 0 520 180">
+            {/* Tracé SVG Responsive */}
+            <div className="w-full h-52 relative select-none">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 520 170">
                 {/* Lignes de grille horizontales & repères MW */}
                 {[0, 15, 30, 45, 50].map((mw) => {
-                  const y = 150 - (mw / cap) * 135;
+                  const y = 140 - (mw / cap) * 125;
                   return (
                     <g key={mw}>
                       <line
@@ -510,7 +454,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                   );
                 })}
 
-                {/* 1. Ligne Vérité Terrain (Réel) : vert émeraude discret */}
+                {/* 1. Ligne Réel (vert émeraude fin) */}
                 {animActMW && animActMW.length === 6 && (
                   <polyline
                     fill="none"
@@ -519,12 +463,12 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                     strokeDasharray="4 4"
                     opacity="0.75"
                     points={animActMW
-                      .map((val, idx) => `${65 + idx * 82},${150 - (Math.max(0, val) / cap) * 135}`)
+                      .map((val, idx) => `${65 + idx * 82},${140 - (Math.max(0, val) / cap) * 125}`)
                       .join(' ')}
                   />
                 )}
 
-                {/* 2. Ligne Persistance Intelligente : gris pointillé */}
+                {/* 2. Ligne Persistance (gris pointillé) */}
                 {animPersMW && animPersMW.length === 6 && (
                   <polyline
                     fill="none"
@@ -533,12 +477,12 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                     strokeDasharray="3 3"
                     opacity="0.8"
                     points={animPersMW
-                      .map((val, idx) => `${65 + idx * 82},${150 - (Math.max(0, val) / cap) * 135}`)
+                      .map((val, idx) => `${65 + idx * 82},${140 - (Math.max(0, val) / cap) * 125}`)
                       .join(' ')}
                   />
                 )}
 
-                {/* 3. Ligne MLP de Référence : ambre tiretée */}
+                {/* 3. Ligne MLP de Référence (ambre tiretée) */}
                 {animMlpMW && animMlpMW.length === 6 && (
                   <polyline
                     fill="none"
@@ -546,7 +490,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                     strokeWidth="2.5"
                     strokeDasharray="6 4"
                     points={animMlpMW
-                      .map((val, idx) => `${65 + idx * 82},${150 - (Math.max(0, val) / cap) * 135}`)
+                      .map((val, idx) => `${65 + idx * 82},${140 - (Math.max(0, val) / cap) * 125}`)
                       .join(' ')}
                   />
                 )}
@@ -560,46 +504,26 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     points={animSeqMW
-                      .map((val, idx) => `${65 + idx * 82},${150 - (Math.max(0, val) / cap) * 135}`)
+                      .map((val, idx) => `${65 + idx * 82},${140 - (Math.max(0, val) / cap) * 125}`)
                       .join(' ')}
                   />
                 )}
 
-                {/* Points & Valeurs Interactives sur le modèle séquentiel */}
+                {/* Points & Valeurs Interactives */}
                 {animSeqMW &&
                   animSeqMW.map((val, idx) => {
                     const cx = 65 + idx * 82;
-                    const cySeq = 150 - (Math.max(0, val) / cap) * 135;
-                    const valMlp = animMlpMW[idx] ?? 0;
-                    const cyMlp = 150 - (Math.max(0, valMlp) / cap) * 135;
+                    const cySeq = 140 - (Math.max(0, val) / cap) * 125;
+                    const cyMlp = 140 - (Math.max(0, animMlpMW[idx] ?? 0) / cap) * 125;
 
                     return (
                       <g key={idx}>
-                        {/* Point MLP */}
-                        <circle
-                          cx={cx}
-                          cy={cyMlp}
-                          r="3.5"
-                          fill="#d97706"
-                          stroke="#ffffff"
-                          strokeWidth="1.5"
-                        />
-
-                        {/* Point Séquentiel avec Halo */}
-                        <circle
-                          cx={cx}
-                          cy={cySeq}
-                          r="5"
-                          fill="#0d9488"
-                          stroke="#ffffff"
-                          strokeWidth="2"
-                        />
-
-                        {/* Valeur MW au-dessus */}
+                        <circle cx={cx} cy={cyMlp} r="3" fill="#d97706" stroke="#ffffff" strokeWidth="1" />
+                        <circle cx={cx} cy={cySeq} r="4.5" fill="#0d9488" stroke="#ffffff" strokeWidth="2" />
                         <text
                           x={cx}
-                          y={cySeq - 10}
-                          fontSize="10"
+                          y={cySeq - 8}
+                          fontSize="9.5"
                           fontWeight="bold"
                           fontFamily="monospace"
                           fill="#0f172a"
@@ -607,11 +531,9 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                         >
                           {val.toFixed(1)}
                         </text>
-
-                        {/* Étiquette d'abscisse */}
                         <text
                           x={cx}
-                          y="172"
+                          y="160"
                           fontSize="10"
                           fontFamily="sans-serif"
                           fontWeight="600"
@@ -626,156 +548,81 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
               </svg>
             </div>
 
-            {/* Note sous le graphique */}
-            <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] text-slate-500">
-              <span className="font-mono">
-                Horizon H1 (t+1h) à H6 (t+6h) · Écrêtage onduleur : 50 MWc
-              </span>
-              <span className="font-mono text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                RMSE {modelType.toUpperCase()} : {result?.rmse_sequential ?? '—'} MW vs MLP : {result?.rmse_mlp ?? '—'} MW
+            <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono text-slate-500">
+              <span>H1 à H6 · Plafond onduleur 50 MWc</span>
+              <span>
+                RMSE : <strong className="text-teal-700">{result?.rmse_sequential ?? '—'} MW</strong> vs MLP : {result?.rmse_mlp ?? '—'} MW
               </span>
             </div>
           </div>
 
           {/* 2. Indicateurs Clés (KPIs) Spécifiques au Jalon 4 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* KPI 1 : Gain Moyen H1-H6 (Cible >= 0.30) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3.5 space-y-1">
-              <span className="text-[11px] font-semibold text-slate-600 block">
-                Gain Moyen H1-H6
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
+              <span className="text-[10px] font-mono text-slate-500 uppercase block">Gain Moyen H1-H6</span>
+              <div className="font-mono text-lg font-black text-teal-700">
+                +{animGainMoyen.toFixed(1)} %
+              </div>
+              <span className={`inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold ${
+                result?.gain_target_met
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+              }`}>
+                Cible ≥ 0.30 {result?.gain_target_met ? '✓' : '⚠️'}
               </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-mono text-xl font-black text-teal-700">
-                  +{animGainMoyen.toFixed(1)} %
-                </span>
-              </div>
-              <div className="pt-1">
-                <span
-                  className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${
-                    result?.gain_target_met
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}
-                >
-                  <i
-                    className={`fa-solid ${
-                      result?.gain_target_met ? 'fa-check' : 'fa-triangle-exclamation'
-                    }`}
-                  ></i>
-                  <span>Cible ≥ 0.30</span>
-                </span>
-              </div>
             </div>
 
-            {/* KPI 2 : Taille du Modèle (Cible <= 5 Mo) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3.5 space-y-1">
-              <span className="text-[11px] font-semibold text-slate-600 block">
-                Taille du Modèle
+            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
+              <span className="text-[10px] font-mono text-slate-500 uppercase block">Taille Modèle</span>
+              <div className="font-mono text-lg font-black text-slate-800">
+                {animModelSize.toFixed(3)} Mo
+              </div>
+              <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Cible ≤ 5 Mo ✓
               </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-mono text-xl font-black text-slate-800">
-                  {animModelSize.toFixed(3)} Mo
-                </span>
-              </div>
-              <div className="pt-1">
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <i className="fa-solid fa-microchip"></i>
-                  <span>Cible ≤ 5 Mo</span>
-                </span>
-              </div>
             </div>
 
-            {/* KPI 3 : Budget de Paramètres (Preuve Jury) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3.5 space-y-1">
-              <span className="text-[11px] font-semibold text-slate-600 block">
-                Budget Paramètres
+            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
+              <span className="text-[10px] font-mono text-slate-500 uppercase block">Paramètres</span>
+              <div className="font-mono text-lg font-black text-slate-800">
+                {Math.round(animParams).toLocaleString('fr-FR')}
+              </div>
+              <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                ~9.5k équivalent
               </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-mono text-xl font-black text-slate-800">
-                  {Math.round(animParams).toLocaleString('fr-FR')}
-                </span>
-              </div>
-              <div className="pt-1">
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded font-semibold bg-teal-50 text-teal-700 border border-teal-200">
-                  <span>~9.5k équivalent</span>
-                </span>
-              </div>
             </div>
 
-            {/* KPI 4 : Gain Court Terme H1 (Cible >= 0.12) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3.5 space-y-1">
-              <span className="text-[11px] font-semibold text-slate-600 block">
-                Gain H1 (1 heure)
+            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
+              <span className="text-[10px] font-mono text-slate-500 uppercase block">Gain H1 (1h)</span>
+              <div className="font-mono text-lg font-black text-emerald-700">
+                +{animGainH1.toFixed(1)} %
+              </div>
+              <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Cible ≥ 0.12 ✓
               </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-mono text-xl font-black text-emerald-700">
-                  +{animGainH1.toFixed(1)} %
-                </span>
-              </div>
-              <div className="pt-1">
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <i className="fa-solid fa-bullseye"></i>
-                  <span>Cible ≥ 0.12</span>
-                </span>
-              </div>
             </div>
           </div>
 
-          {/* 3. Analyse de la Décision (En bas à droite) */}
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-3">
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div>
-                <h4 className="font-semibold text-slate-900 text-sm">
-                  Analyse de la Décision &amp; Comportement Physique Observé
-                </h4>
-              </div>
-              <span className="text-[10px] font-mono bg-teal-50 text-teal-700 px-2 py-0.5 rounded border border-teal-200 font-semibold">
-                Note de Décision (Soutenance)
-              </span>
+          {/* 3. Analyse de la Décision (Bannière Compacte) */}
+          <div className="bg-teal-50/70 border border-teal-200/90 rounded-xl p-3 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse shrink-0"></span>
+              <p className="text-teal-950 font-medium text-[11px] leading-snug">
+                <strong className="text-teal-900">Analyse de la Décision : </strong>
+                {result?.decision_analysis?.summary ||
+                  `Le modèle ${modelType.toUpperCase()} (historique ${historyHours}h) a mémorisé l'encrassement des panneaux d'hier, ajustant la prévision à la baisse par rapport au MLP classique.`}
+              </p>
             </div>
-
-            <div className="space-y-2.5 text-xs text-slate-700 leading-relaxed">
-              <div className="p-3 bg-teal-50/60 rounded-xl border border-teal-200/80 font-medium text-teal-950">
-                {result?.decision_analysis?.narrative ||
-                  'Analyse de la dynamique temporelle en cours de calcul...'}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                  <span className="font-semibold text-slate-900 block text-[11px]">
-                    Effet Mémoire ({historyHours}h) :
-                  </span>
-                  <p className="text-[11px] text-slate-600 leading-snug">
-                    {result?.decision_analysis?.memory_effect || 'Chargement...'}
-                  </p>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                  <span className="font-semibold text-slate-900 block text-[11px]">
-                    Comparaison vs MLP Tabulaire :
-                  </span>
-                  <p className="text-[11px] text-slate-600 leading-snug">
-                    {result?.decision_analysis?.comparison_with_mlp || 'Chargement...'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-2.5 bg-slate-100/80 rounded-lg text-[11px] text-slate-600 font-mono border border-slate-200 flex items-center justify-between">
-                <span>
-                  💡 <strong>Argument clé jury :</strong>{' '}
-                  {result?.decision_analysis?.jury_takeaway ||
-                    'Les réseaux récurrents capturent l’état physique de la centrale grâce à leur mémoire.'}
-                </span>
-              </div>
-            </div>
+            <span className="shrink-0 text-[10px] font-mono font-bold bg-white text-teal-800 px-2 py-1 rounded border border-teal-200 shadow-2xs">
+              Δ vs MLP : -{deltaPeak} MW
+            </span>
           </div>
 
           {/* 4. Tableau Détaillé du Décodage des 6 Horizons */}
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 space-y-2">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs">
-              <span className="font-semibold text-slate-800">
-                Tableau Comparatif des Décodages (t+1h à t+6h)
+          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3.5 space-y-2">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-xs">
+              <span className="font-semibold text-slate-800 text-[11px] font-mono uppercase">
+                Décodage des Horizons (t+1h à t+6h)
               </span>
               <span className="text-[10px] font-mono text-slate-500">
                 {generationStrategy === 'seq2seq' ? 'Mode Pas-à-Pas' : 'Mode Direct'}
@@ -786,15 +633,13 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 text-[10px] uppercase font-mono">
-                    <th className="py-1.5 px-2">Horizon</th>
-                    <th className="py-1.5 px-2 text-teal-700 font-bold">
-                      {modelType.toUpperCase()} (MW)
-                    </th>
-                    <th className="py-1.5 px-2 text-amber-700 font-semibold">MLP Réf. (MW)</th>
-                    <th className="py-1.5 px-2 text-slate-600">Persistance (MW)</th>
-                    <th className="py-1.5 px-2 text-emerald-700">Réel (MW)</th>
-                    <th className="py-1.5 px-2">Irradiance (W/m²)</th>
-                    <th className="py-1.5 px-2">État Cellule / Portes</th>
+                    <th className="py-1 px-2">Horizon</th>
+                    <th className="py-1 px-2 text-teal-700 font-bold">{modelType.toUpperCase()}</th>
+                    <th className="py-1 px-2 text-amber-700 font-semibold">MLP Réf.</th>
+                    <th className="py-1 px-2 text-slate-500">Persistance</th>
+                    <th className="py-1 px-2 text-emerald-700 font-semibold">Réel</th>
+                    <th className="py-1 px-2">Irradiance</th>
+                    <th className="py-1 px-2">État Portes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -816,7 +661,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                       <td className="py-1.5 px-2 text-emerald-600 font-semibold">
                         {step.actual_mw.toFixed(1)} MW
                       </td>
-                      <td className="py-1.5 px-2 text-slate-600 font-sans">
+                      <td className="py-1.5 px-2 text-slate-600 font-sans text-[11px]">
                         {step.irradiance_future} W/m²
                       </td>
                       <td className="py-1.5 px-2 text-slate-500 font-sans text-[10px]">

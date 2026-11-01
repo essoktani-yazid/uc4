@@ -36,6 +36,7 @@ class DecodingStep(BaseModel):
 
 
 class DecisionAnalysis(BaseModel):
+    summary: str
     title: str
     narrative: str
     memory_effect: str
@@ -191,6 +192,10 @@ def compute_jalon4_simulation(
         ]
 
         title = "Impact de la Mémoire : Détection de la Tempête de Sable de la Veille"
+        summary = (
+            f"Le modèle {model_type.upper()} (historique {history_hours}h) a mémorisé la chute de production d'hier lors de la tempête de sable, "
+            f"ajustant la prévision à la baisse (-{round(mlp_pred[2] - seq_pred[2], 1)} MW) par rapport au MLP classique."
+        )
         narrative = (
             f"Le modèle {model_type.upper()} ({history_hours}h d'historique) a analysé la signature temporelle "
             f"des {history_hours} heures passées. Il a mémorisé le déficit anormal de production d'hier causé par le "
@@ -243,6 +248,12 @@ def compute_jalon4_simulation(
         ]
 
         title = "Détection de Dérive : Encrassement Progressif sur Multi-Jours"
+        summary = (
+            f"Le modèle {model_type.upper()} (historique {history_hours}h) "
+            + (f"a capté la dérive d'encrassement des derniers jours, ajustant la prévision de -{round(mlp_pred[2] - seq_pred[2], 1)} MW par rapport au MLP."
+               if history_hours >= 48 else
+               f"a une mémoire trop courte ({history_hours}h) pour détecter la dérive lente sur plusieurs semaines.")
+        )
         narrative = (
             f"Avec un historique de {history_hours}h, le réseau {model_type.upper()} "
             f"{'détecte nettement la pente décroissante des pics journaliers sur les derniers jours' if history_hours >= 48 else 'ne perçoit que partiellement la dérive lente due au manque de profondeur historique'}. "
@@ -280,6 +291,10 @@ def compute_jalon4_simulation(
         ]
 
         title = "Régime Nominal : Cycle Solaire Estival Standard (Ouarzazate)"
+        summary = (
+            f"Le modèle {model_type.upper()} (historique {history_hours}h) reproduit fidèlement la dynamique solaire "
+            f"et l'écrêtage à 50 MWc avec un gain de +{round(gain_moyen*100, 1)} % par rapport à la persistance."
+        )
         narrative = (
             f"Sur cycle stable sans perturbation météorologique, le modèle {model_type.upper()} "
             f"reproduit parfaitement la courbe en cloche avec écrêtage à 50 MWc. La fluidité du décodage "
@@ -359,6 +374,7 @@ def compute_jalon4_simulation(
         "rmse_persistence": round(rmse_pers, 2),
         "decoding_steps": decoding_steps,
         "decision_analysis": DecisionAnalysis(
+            summary=summary,
             title=title,
             narrative=narrative,
             memory_effect=memory_effect,
@@ -407,3 +423,4 @@ def predict_jalon4(req: Jalon4PredictRequest):
     )
 
     return Jalon4PredictResponse(**result)
+
