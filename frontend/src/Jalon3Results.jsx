@@ -1,5 +1,89 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// Cubic easing for silky smooth transitions
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+// Hook pour animer un tableau de valeurs numériques avec morphing fluide (650ms)
+function useAnimatedArray(targetArray, duration = 650) {
+  const [current, setCurrent] = useState(targetArray || []);
+  const startRef = useRef(targetArray || []);
+  const targetRef = useRef(targetArray || []);
+  const startTimeRef = useRef(0);
+  const targetKey = JSON.stringify(targetArray);
+
+  useEffect(() => {
+    if (!targetArray || targetArray.length === 0) return;
+
+    const start =
+      startRef.current && startRef.current.length === targetArray.length
+        ? [...startRef.current]
+        : new Array(targetArray.length).fill(0);
+    const target = [...targetArray];
+    targetRef.current = target;
+    startTimeRef.current = performance.now();
+
+    let frameId;
+    const animate = (now) => {
+      const elapsed = now - startTimeRef.current;
+      const progress = Math.min(1, elapsed / duration);
+      const ease = easeOutCubic(progress);
+
+      const next = start.map((sVal, i) => {
+        const tVal = target[i] ?? 0;
+        return Number((sVal + (tVal - sVal) * ease).toFixed(2));
+      });
+
+      setCurrent(next);
+      startRef.current = next;
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(animate);
+      }
+    };
+
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [targetKey, duration]);
+
+  return current;
+}
+
+// Hook pour animer un nombre unique de manière continue (jauges, pourcentages)
+function useAnimatedNumber(targetNumber, duration = 650, decimals = 2) {
+  const [current, setCurrent] = useState(Number(targetNumber || 0));
+  const startRef = useRef(Number(targetNumber || 0));
+  const startTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (targetNumber === null || targetNumber === undefined || isNaN(targetNumber)) return;
+    const start = startRef.current;
+    const target = Number(targetNumber);
+    startTimeRef.current = performance.now();
+
+    let frameId;
+    const animate = (now) => {
+      const elapsed = now - startTimeRef.current;
+      const progress = Math.min(1, elapsed / duration);
+      const ease = easeOutCubic(progress);
+      const next = Number((start + (target - start) * ease).toFixed(decimals));
+
+      setCurrent(next);
+      startRef.current = next;
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(animate);
+      }
+    };
+
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [targetNumber, duration, decimals]);
+
+  return current;
+}
+
 // Formatters
 const fmt = (val, digits = 2) => {
   if (val == null || isNaN(val)) return '—';
@@ -74,6 +158,37 @@ export default function Jalon3Results() {
 
   // 3. Benchmark selected strategy
   const [selectedStrategy, setSelectedStrategy] = useState('ajustement_complet');
+
+  const capNominaleB = 20.0; // 20 MW sur Site B
+
+  // === ANIMATIONS FLUIDES POUR LA PRODUCTION ===
+  const animFineTuned = useAnimatedArray(prodResult?.fineTunedMW, 650);
+  const animZeroShot = useAnimatedArray(prodResult?.zeroShotMW, 650);
+  const animActual = useAnimatedArray(prodResult?.actualMW, 650);
+  const animReference = useAnimatedArray(prodResult?.referenceMW, 650);
+
+  // Animated KPI numbers
+  const meanFT = prodResult?.fineTunedMW ? prodResult.fineTunedMW.reduce((a, b) => a + b, 0) / 6 : 0;
+  const meanZS = prodResult?.zeroShotMW ? prodResult.zeroShotMW.reduce((a, b) => a + b, 0) / 6 : 0;
+  const meanAct = prodResult?.actualMW ? prodResult.actualMW.reduce((a, b) => a + b, 0) / 6 : 0;
+
+  const animMeanFT = useAnimatedNumber(meanFT, 650, 2);
+  const animMeanZS = useAnimatedNumber(meanZS, 650, 2);
+  const animMeanAct = useAnimatedNumber(meanAct, 650, 2);
+  const animMaeFT = useAnimatedNumber(prodResult?.maeFineTunedMW, 650, 2);
+  const animMaeZS = useAnimatedNumber(prodResult?.maeZeroShotMW, 650, 2);
+
+  const transferGain =
+    prodResult?.maeZeroShotMW && prodResult?.maeFineTunedMW
+      ? ((prodResult.maeZeroShotMW - prodResult.maeFineTunedMW) / (prodResult.maeZeroShotMW || 1)) * 100
+      : 26.6;
+  const animGain = useAnimatedNumber(transferGain, 650, 1);
+
+  // === ANIMATIONS FLUIDES POUR LA VISION CIEL ===
+  const animOccultation = useAnimatedNumber(skyResult?.prediction?.occultation, 650, 4);
+  const animCoverage = useAnimatedNumber(skyResult?.prediction?.coverage, 650, 4);
+  const animErrOcc = useAnimatedNumber(skyResult?.absoluteError?.occultation, 650, 4);
+  const animErrCov = useAnimatedNumber(skyResult?.absoluteError?.coverage, 650, 4);
 
   // Load sample counts & results data on mount
   useEffect(() => {
@@ -216,11 +331,9 @@ export default function Jalon3Results() {
     executeSkyTest(randomIdx, skySite, null);
   };
 
-  const capNominaleB = 20.0; // 20 MW sur Site B
-
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* Sub-Tab Navigation Bar */}
+      {/* Sub-Tab Navigation Bar with Smooth Pills */}
       <div className="bg-white rounded-xl border border-slate-200/90 p-2 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           {[
@@ -246,15 +359,15 @@ export default function Jalon3Results() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveSubTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out ${
                   isActive
-                    ? 'bg-teal-600 text-white shadow-sm font-semibold'
+                    ? 'bg-teal-600 text-white shadow-sm font-semibold scale-[1.01]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-colors duration-300 ${
                     isActive
                       ? 'bg-teal-700/80 text-teal-100'
                       : 'bg-slate-100 text-slate-500 border border-slate-200'
@@ -269,7 +382,7 @@ export default function Jalon3Results() {
 
         {/* Global info pill */}
         <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-mono pr-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>Site B : Tarfaya (Façade Atlantique)</span>
         </div>
       </div>
@@ -290,7 +403,7 @@ export default function Jalon3Results() {
       {/* SOUS-ONGLET 1: TEST DE PRODUCTION (TRANSFERT DE SITE B)                   */}
       {/* ========================================================================= */}
       {activeSubTab === 'prod' && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <div key="tab-prod" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
           {/* Colonne Gauche : Contrôles & Échantillons (5 cols) */}
           <div className="xl:col-span-5 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
@@ -329,10 +442,10 @@ export default function Jalon3Results() {
                           setProdIndex(preset.idx);
                           executeProductionTest(preset.idx);
                         }}
-                        className={`text-left p-2.5 rounded-lg border text-xs transition-all ${
+                        className={`text-left p-2.5 rounded-lg border text-xs transition-all duration-300 ease-out ${
                           isSelected
-                            ? 'bg-teal-50 border-teal-300 text-teal-900 shadow-xs'
-                            : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100 text-slate-700'
+                            ? 'bg-teal-50 border-teal-400 text-teal-900 shadow-xs ring-1 ring-teal-300 scale-[1.01]'
+                            : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100 text-slate-700 hover:border-slate-300'
                         }`}
                       >
                         <div className="font-semibold">{preset.label}</div>
@@ -365,13 +478,13 @@ export default function Jalon3Results() {
                         );
                         setProdIndex(val);
                       }}
-                      className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded focus:ring-1 focus:ring-teal-500"
+                      className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded focus:ring-1 focus:ring-teal-500 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={pickRandomProdSample}
                       title="Tirer un échantillon au hasard"
-                      className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 font-medium text-slate-600 transition"
+                      className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 font-medium text-slate-600 transition-colors"
                     >
                       Aléatoire
                     </button>
@@ -386,7 +499,7 @@ export default function Jalon3Results() {
                   onChange={(e) => setProdIndex(Number(e.target.value))}
                   onMouseUp={() => executeProductionTest(prodIndex)}
                   onTouchEnd={() => executeProductionTest(prodIndex)}
-                  className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                  className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none transition-all"
                 />
                 <div className="flex justify-between text-[10px] text-slate-400 font-mono">
                   <span>0 (Avril 2025)</span>
@@ -399,24 +512,27 @@ export default function Jalon3Results() {
                 type="button"
                 onClick={() => executeProductionTest(prodIndex)}
                 disabled={prodLoading}
-                className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-semibold text-xs rounded-lg shadow-sm transition flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-semibold text-xs rounded-lg shadow-sm transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2"
               >
                 {prodLoading ? (
-                  <span>Calcul de l'inférence en cours...</span>
+                  <span className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>Inférence des modèles en cours...</span>
+                  </span>
                 ) : (
                   <span>Tester cet Échantillon (Inférence Modèles)</span>
                 )}
               </button>
 
               {prodError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs animate-fade-in">
                   {prodError}
                 </div>
               )}
 
               {/* Contexte temporel & Historique 24h */}
               {prodResult && (
-                <div className="pt-3 border-t border-slate-100 space-y-2">
+                <div className="pt-3 border-t border-slate-100 space-y-2 animate-fade-in">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-500">Horodatage de départ :</span>
                     <span className="font-mono font-semibold text-slate-800">
@@ -424,7 +540,7 @@ export default function Jalon3Results() {
                     </span>
                   </div>
 
-                  {/* Sparkline historique 24h passées */}
+                  {/* Sparkline historique 24h passées avec transitions fluides */}
                   {prodResult.historyMW && prodResult.historyMW.length > 0 && (
                     <div>
                       <span className="text-[11px] font-medium text-slate-600 block mb-1">
@@ -438,7 +554,7 @@ export default function Jalon3Results() {
                               key={i}
                               title={`t-${24 - i}h : ${fmt(mw, 1)} MW`}
                               style={{ height: `${heightPct}%` }}
-                              className="flex-1 bg-slate-400 hover:bg-teal-500 rounded-t-xs transition-colors"
+                              className="flex-1 bg-slate-400 hover:bg-teal-500 rounded-t-xs transition-all duration-500 ease-out"
                             />
                           );
                         })}
@@ -468,62 +584,55 @@ export default function Jalon3Results() {
                     Comparaison dynamique sur l'horizon t+1h à t+6h
                   </p>
                 </div>
-                {prodResult && prodResult.maeFineTunedMW != null && (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200">
-                    MAE B: {fmt(prodResult.maeFineTunedMW, 2)} MW
+                {prodResult && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200 transition-all duration-500">
+                    MAE B: {fmt(animMaeFT, 2)} MW
                   </span>
                 )}
               </div>
 
               {prodResult ? (
                 <>
-                  {/* KPI Bento Cards */}
+                  {/* KPI Bento Cards avec Chiffres Animés */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div className="bg-teal-50/60 p-2.5 rounded-lg border border-teal-200/70 text-center">
+                    <div className="bg-teal-50/60 p-2.5 rounded-lg border border-teal-200/70 text-center transition-all duration-500">
                       <span className="text-[10px] text-teal-700 block font-medium">Ajusté B (Retenu)</span>
                       <span className="font-mono text-sm font-bold text-teal-900">
-                        {fmt(prodResult.fineTunedMW?.reduce((a, b) => a + b, 0) / 6, 2)} MW
+                        {fmt(animMeanFT, 2)} MW
                       </span>
-                      <span className="text-[9px] text-teal-600 block mt-0.5">
-                        MAE: {fmt(prodResult.maeFineTunedMW, 2)} MW
+                      <span className="text-[9px] text-teal-600 block mt-0.5 font-mono">
+                        MAE: {fmt(animMaeFT, 2)} MW
                       </span>
                     </div>
 
-                    <div className="bg-amber-50/60 p-2.5 rounded-lg border border-amber-200/70 text-center">
+                    <div className="bg-amber-50/60 p-2.5 rounded-lg border border-amber-200/70 text-center transition-all duration-500">
                       <span className="text-[10px] text-amber-700 block font-medium">A Direct (Zero-Shot)</span>
                       <span className="font-mono text-sm font-bold text-amber-900">
-                        {fmt(prodResult.zeroShotMW?.reduce((a, b) => a + b, 0) / 6, 2)} MW
+                        {fmt(animMeanZS, 2)} MW
                       </span>
-                      <span className="text-[9px] text-amber-600 block mt-0.5">
-                        MAE: {fmt(prodResult.maeZeroShotMW, 2)} MW
+                      <span className="text-[9px] text-amber-600 block mt-0.5 font-mono">
+                        MAE: {fmt(animMaeZS, 2)} MW
                       </span>
                     </div>
 
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
+                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center transition-all duration-500">
                       <span className="text-[10px] text-slate-600 block font-medium">Production Réelle</span>
                       <span className="font-mono text-sm font-bold text-slate-900">
-                        {fmt(prodResult.actualMW?.reduce((a, b) => a + b, 0) / 6, 2)} MW
+                        {fmt(animMeanAct, 2)} MW
                       </span>
                       <span className="text-[9px] text-slate-400 block mt-0.5">Vérité terrain</span>
                     </div>
 
-                    <div className="bg-emerald-50/60 p-2.5 rounded-lg border border-emerald-200/70 text-center">
+                    <div className="bg-emerald-50/60 p-2.5 rounded-lg border border-emerald-200/70 text-center transition-all duration-500">
                       <span className="text-[10px] text-emerald-700 block font-medium">Gain Transfert</span>
                       <span className="font-mono text-sm font-bold text-emerald-800">
-                        {prodResult.maeZeroShotMW && prodResult.maeFineTunedMW
-                          ? `${fmt(
-                              ((prodResult.maeZeroShotMW - prodResult.maeFineTunedMW) /
-                                (prodResult.maeZeroShotMW || 1)) *
-                                100,
-                              1
-                            )} %`
-                          : '+26,6 %'}
+                        +{fmt(animGain, 1)} %
                       </span>
                       <span className="text-[9px] text-emerald-600 block mt-0.5">vs Zero-Shot</span>
                     </div>
                   </div>
 
-                  {/* SVG Chart Comparison */}
+                  {/* SVG Chart Comparison avec Courbes Morphing Fluides */}
                   <div className="w-full h-56 relative bg-slate-50/60 rounded-xl p-2 border border-slate-200/80">
                     <svg className="w-full h-full overflow-visible" viewBox="0 0 500 170">
                       {/* Grid Lines */}
@@ -550,61 +659,61 @@ export default function Jalon3Results() {
                         0 MW
                       </text>
 
-                      {/* Reference Persistence Curve (Dashed Slate) */}
-                      {prodResult.referenceMW && (
+                      {/* Reference Persistence Curve (Dashed Slate) Animée */}
+                      {animReference.length > 0 && (
                         <polyline
                           fill="none"
                           stroke="#94a3b8"
                           strokeWidth="1.5"
                           strokeDasharray="4 4"
-                          points={prodResult.referenceMW
+                          points={animReference
                             .map((val, idx) => `${55 + idx * 80},${135 - (val / capNominaleB) * 120}`)
                             .join(' ')}
                         />
                       )}
 
-                      {/* Zero-Shot Curve (Amber) */}
-                      {prodResult.zeroShotMW && (
+                      {/* Zero-Shot Curve (Amber) Animée */}
+                      {animZeroShot.length > 0 && (
                         <polyline
                           fill="none"
                           stroke="#f59e0b"
                           strokeWidth="2.5"
                           strokeLinecap="round"
-                          points={prodResult.zeroShotMW
+                          points={animZeroShot
                             .map((val, idx) => `${55 + idx * 80},${135 - (val / capNominaleB) * 120}`)
                             .join(' ')}
                         />
                       )}
 
-                      {/* Actual Ground Truth (Dark Line) */}
-                      {prodResult.actualMW && (
+                      {/* Actual Ground Truth (Dark Line) Animée */}
+                      {animActual.length > 0 && (
                         <polyline
                           fill="none"
                           stroke="#1e293b"
                           strokeWidth="2"
                           strokeLinecap="round"
-                          points={prodResult.actualMW
+                          points={animActual
                             .map((val, idx) => `${55 + idx * 80},${135 - (val / capNominaleB) * 120}`)
                             .join(' ')}
                         />
                       )}
 
-                      {/* Fine-Tuned Model Curve (Solid Teal) */}
-                      {prodResult.fineTunedMW && (
+                      {/* Fine-Tuned Model Curve (Solid Teal) Animée */}
+                      {animFineTuned.length > 0 && (
                         <polyline
                           fill="none"
                           stroke="#0d9488"
                           strokeWidth="3.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          points={prodResult.fineTunedMW
+                          points={animFineTuned
                             .map((val, idx) => `${55 + idx * 80},${135 - (val / capNominaleB) * 120}`)
                             .join(' ')}
                         />
                       )}
 
-                      {/* Data dots on Curves */}
-                      {prodResult.fineTunedMW?.map((val, idx) => {
+                      {/* Data dots on Fine-Tuned Curve avec position fluide */}
+                      {animFineTuned.map((val, idx) => {
                         const cx = 55 + idx * 80;
                         const cy = 135 - (val / capNominaleB) * 120;
                         return (
@@ -614,7 +723,8 @@ export default function Jalon3Results() {
                         );
                       })}
 
-                      {prodResult.actualMW?.map((val, idx) => {
+                      {/* Data dots on Actual Curve */}
+                      {animActual.map((val, idx) => {
                         const cx = 55 + idx * 80;
                         const cy = 135 - (val / capNominaleB) * 120;
                         return (
@@ -659,7 +769,7 @@ export default function Jalon3Results() {
                     </span>
                   </div>
 
-                  {/* Table détaillée des 6 Horizons */}
+                  {/* Table détaillée des 6 Horizons avec Valeurs Fluides */}
                   <div className="overflow-x-auto pt-2 border-t border-slate-100">
                     <table className="w-full text-xs text-left">
                       <thead>
@@ -675,13 +785,13 @@ export default function Jalon3Results() {
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-mono">
                         {[0, 1, 2, 3, 4, 5].map((idx) => {
-                          const act = prodResult.actualMW?.[idx];
-                          const ft = prodResult.fineTunedMW?.[idx];
-                          const zs = prodResult.zeroShotMW?.[idx];
-                          const ref = prodResult.referenceMW?.[idx];
+                          const act = animActual[idx] ?? prodResult.actualMW?.[idx];
+                          const ft = animFineTuned[idx] ?? prodResult.fineTunedMW?.[idx];
+                          const zs = animZeroShot[idx] ?? prodResult.zeroShotMW?.[idx];
+                          const ref = animReference[idx] ?? prodResult.referenceMW?.[idx];
                           const delta = act != null && ft != null ? Math.abs(act - ft) : null;
                           return (
-                            <tr key={idx} className="hover:bg-slate-50/60">
+                            <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
                               <td className="py-1.5 px-1 font-semibold text-slate-700">t+{idx + 1}h</td>
                               <td className="py-1.5 px-1 text-slate-500">
                                 {prodResult.timestamps?.[idx]?.split(' ')[1]?.slice(0, 5) || `+${idx + 1}h`}
@@ -690,7 +800,9 @@ export default function Jalon3Results() {
                               <td className="py-1.5 px-1 text-teal-700 font-bold">{fmt(ft, 2)}</td>
                               <td className="py-1.5 px-1 text-amber-700">{fmt(zs, 2)}</td>
                               <td className="py-1.5 px-1 text-slate-400">{fmt(ref, 2)}</td>
-                              <td className="py-1.5 px-1 text-emerald-600">{delta != null ? `${fmt(delta, 2)}` : '—'}</td>
+                              <td className="py-1.5 px-1 text-emerald-600 font-semibold">
+                                {delta != null ? `${fmt(delta, 2)}` : '—'}
+                              </td>
                             </tr>
                           );
                         })}
@@ -700,7 +812,7 @@ export default function Jalon3Results() {
                 </>
               ) : (
                 <div className="py-16 flex flex-col items-center justify-center text-center">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3 animate-pulse">
                     B
                   </div>
                   <p className="text-xs font-medium text-slate-700">Aucun calcul actif</p>
@@ -718,7 +830,7 @@ export default function Jalon3Results() {
       {/* SOUS-ONGLET 2: TEST VISION MULTI-TÂCHES (CNN CIEL & OCCULTATION)         */}
       {/* ========================================================================= */}
       {activeSubTab === 'vision' && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <div key="tab-vision" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
           {/* Colonne Gauche : Paramètres & Sélection d'Image (5 cols) */}
           <div className="xl:col-span-5 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
@@ -748,10 +860,10 @@ export default function Jalon3Results() {
                       setSkySite('B');
                       executeSkyTest(skyIndex, 'B', skyUpload);
                     }}
-                    className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                    className={`p-2.5 rounded-lg border text-xs text-left transition-all duration-300 ease-out ${
                       skySite === 'B'
-                        ? 'bg-teal-50 border-teal-300 text-teal-900 font-semibold'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
                     }`}
                   >
                     <div>Site B — Tarfaya</div>
@@ -766,10 +878,10 @@ export default function Jalon3Results() {
                       setSkySite('A');
                       executeSkyTest(skyIndex, 'A', skyUpload);
                     }}
-                    className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                    className={`p-2.5 rounded-lg border text-xs text-left transition-all duration-300 ease-out ${
                       skySite === 'A'
-                        ? 'bg-teal-50 border-teal-300 text-teal-900 font-semibold'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
                     }`}
                   >
                     <div>Site A — Ouarzazate</div>
@@ -790,7 +902,7 @@ export default function Jalon3Results() {
                       setSkyUpload(null);
                       executeSkyTest(skyIndex, skySite, null);
                     }}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition ${
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
                       skyMode === 'sample'
                         ? 'bg-white text-slate-900 shadow-xs font-semibold'
                         : 'text-slate-500 hover:text-slate-800'
@@ -801,7 +913,7 @@ export default function Jalon3Results() {
                   <button
                     type="button"
                     onClick={() => setSkyMode('upload')}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition ${
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
                       skyMode === 'upload'
                         ? 'bg-white text-slate-900 shadow-xs font-semibold'
                         : 'text-slate-500 hover:text-slate-800'
@@ -831,10 +943,10 @@ export default function Jalon3Results() {
                               setSkyUpload(null);
                               executeSkyTest(preset.idx, skySite, null);
                             }}
-                            className={`p-2 rounded-lg border text-left text-xs transition-all ${
+                            className={`p-2 rounded-lg border text-left text-xs transition-all duration-300 ease-out ${
                               isSelected
-                                ? 'bg-teal-50 border-teal-300 text-teal-900 font-semibold'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
                             }`}
                           >
                             <div>{preset.label}</div>
@@ -855,12 +967,12 @@ export default function Jalon3Results() {
                             max={sampleCounts?.sky?.[skySite] ? sampleCounts.sky[skySite] - 1 : 1000}
                             value={skyIndex}
                             onChange={(e) => setSkyIndex(Number(e.target.value))}
-                            className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded"
+                            className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded transition-colors"
                           />
                           <button
                             type="button"
                             onClick={pickRandomSkySample}
-                            className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 text-slate-600"
+                            className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 text-slate-600 transition-colors"
                           >
                             Aléatoire
                           </button>
@@ -875,13 +987,13 @@ export default function Jalon3Results() {
                         onChange={(e) => setSkyIndex(Number(e.target.value))}
                         onMouseUp={() => executeSkyTest(skyIndex, skySite, null)}
                         onTouchEnd={() => executeSkyTest(skyIndex, skySite, null)}
-                        className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                        className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none transition-all"
                       />
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <label className="border-2 border-dashed border-slate-300 hover:border-teal-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition">
+                    <label className="border-2 border-dashed border-slate-300 hover:border-teal-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition-colors duration-200">
                       <span className="text-xs font-semibold text-slate-700">
                         Glissez une image ou cliquez pour parcourir
                       </span>
@@ -895,7 +1007,7 @@ export default function Jalon3Results() {
                     </label>
 
                     {skyUpload && (
-                      <div className="flex items-center justify-between p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs">
+                      <div className="flex items-center justify-between p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs animate-fade-in">
                         <span className="text-teal-800 font-medium">Image personnalisée prête</span>
                         <button
                           type="button"
@@ -919,17 +1031,20 @@ export default function Jalon3Results() {
                 type="button"
                 onClick={() => executeSkyTest(skyIndex, skySite, skyUpload)}
                 disabled={skyLoading}
-                className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-semibold text-xs rounded-lg shadow-sm transition flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-semibold text-xs rounded-lg shadow-sm transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2"
               >
                 {skyLoading ? (
-                  <span>Analyse CNN en cours...</span>
+                  <span className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>Analyse CNN en cours...</span>
+                  </span>
                 ) : (
                   <span>Analyser l'Image (Inférence Multi-Tâches)</span>
                 )}
               </button>
 
               {skyError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs animate-fade-in">
                   {skyError}
                 </div>
               )}
@@ -957,14 +1072,14 @@ export default function Jalon3Results() {
                 <div className="space-y-4">
                   {/* Visualisation Bento : Image à gauche + Jauges à droite */}
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                    {/* Image prétraitée */}
+                    {/* Image prétraitée avec transition fluide */}
                     <div className="sm:col-span-5 flex flex-col items-center">
-                      <div className="relative w-44 h-44 rounded-xl border-2 border-slate-200 overflow-hidden shadow-xs bg-black flex items-center justify-center">
+                      <div className="relative w-44 h-44 rounded-xl border-2 border-slate-200 overflow-hidden shadow-xs bg-black flex items-center justify-center transition-all duration-500">
                         {skyResult.image ? (
                           <img
                             src={skyResult.image}
                             alt="Image ciel analysée"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover transition-opacity duration-500"
                           />
                         ) : (
                           <span className="text-slate-400 text-xs">Aperçu image</span>
@@ -978,32 +1093,27 @@ export default function Jalon3Results() {
                       </span>
                     </div>
 
-                    {/* Jauges Métriques */}
+                    {/* Jauges Métriques Animées */}
                     <div className="sm:col-span-7 space-y-3">
                       {/* 1. Occultation du Disque Solaire */}
-                      <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 space-y-1.5">
+                      <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 space-y-1.5 transition-all duration-500">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-slate-800">
                             Occultation du Disque Solaire
                           </span>
                           <span className="font-mono font-bold text-amber-700 text-sm">
-                            {pct(skyResult.prediction?.occultation)}
+                            {pct(animOccultation)}
                           </span>
                         </div>
 
-                        {/* Barre de progression */}
+                        {/* Barre de progression fluide */}
                         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                           <div
                             style={{
-                              width: `${Math.min(
-                                100,
-                                Math.max(0, (skyResult.prediction?.occultation || 0) * 100)
-                              )}%`,
+                              width: `${Math.min(100, Math.max(0, animOccultation * 100))}%`,
                             }}
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              (skyResult.prediction?.occultation || 0) > 0.5
-                                ? 'bg-amber-500'
-                                : 'bg-emerald-500'
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${
+                              animOccultation > 0.5 ? 'bg-amber-500' : 'bg-emerald-500'
                             }`}
                           />
                         </div>
@@ -1018,35 +1128,32 @@ export default function Jalon3Results() {
                           <span>
                             Erreur :{' '}
                             {skyResult.absoluteError?.occultation != null
-                              ? pct(skyResult.absoluteError.occultation)
+                              ? pct(animErrOcc)
                               : '—'}
                           </span>
                         </div>
                       </div>
 
                       {/* 2. Couverture Nuageuse Globale */}
-                      <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 space-y-1.5">
+                      <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 space-y-1.5 transition-all duration-500">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-slate-800">
                             Couverture Nuageuse Globale
                           </span>
                           <span className="font-mono font-bold text-teal-700 text-sm">
                             {skyResult.prediction?.coverage != null
-                              ? pct(skyResult.prediction.coverage)
+                              ? pct(animCoverage)
                               : 'Non supervisée (λ=0)'}
                           </span>
                         </div>
 
-                        {/* Barre de progression */}
+                        {/* Barre de progression fluide */}
                         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                           <div
                             style={{
-                              width: `${Math.min(
-                                100,
-                                Math.max(0, (skyResult.prediction?.coverage || 0) * 100)
-                              )}%`,
+                              width: `${Math.min(100, Math.max(0, animCoverage * 100))}%`,
                             }}
-                            className="h-full bg-teal-600 rounded-full transition-all duration-500"
+                            className="h-full bg-teal-600 rounded-full transition-all duration-700 ease-out"
                           />
                         </div>
 
@@ -1060,7 +1167,7 @@ export default function Jalon3Results() {
                           <span>
                             Erreur :{' '}
                             {skyResult.absoluteError?.coverage != null
-                              ? pct(skyResult.absoluteError.coverage)
+                              ? pct(animErrCov)
                               : '—'}
                           </span>
                         </div>
@@ -1069,7 +1176,7 @@ export default function Jalon3Results() {
                   </div>
 
                   {/* Diagnostic Opérationnel & Impact PV */}
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5 transition-all duration-300">
                     <div className="font-semibold text-slate-800 flex items-center justify-between">
                       <span>Diagnostic Opérationnel Photovoltaïque :</span>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
@@ -1077,9 +1184,9 @@ export default function Jalon3Results() {
                       </span>
                     </div>
                     <p className="text-slate-600 text-[11px] leading-relaxed">
-                      {(skyResult.prediction?.occultation || 0) > 0.5
+                      {animOccultation > 0.5
                         ? 'Soleil masqué par une masse nuageuse dense : chute sévère de l’irradiance directe (DNI) entraînant une bascule en régime diffus.'
-                        : (skyResult.prediction?.coverage || 0) > 0.3
+                        : animCoverage > 0.3
                         ? 'Ciel partiellement voilé mais disque solaire dégagé : l’irradiance directe reste exploitable avec atténuation modérée.'
                         : 'Conditions de ciel clair optimales : captation solaire maximale sans perte d’occultation.'}
                     </p>
@@ -1087,7 +1194,7 @@ export default function Jalon3Results() {
                 </div>
               ) : (
                 <div className="py-16 flex flex-col items-center justify-center text-center">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3 animate-pulse">
                     CNN
                   </div>
                   <p className="text-xs font-medium text-slate-700">Aucune analyse d'image active</p>
@@ -1105,7 +1212,7 @@ export default function Jalon3Results() {
       {/* SOUS-ONGLET 3: STRATÉGIES DE TRANSFERT & BENCHMARK INTERACTIF             */}
       {/* ========================================================================= */}
       {activeSubTab === 'benchmark' && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <div key="tab-bench" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
           {/* Colonne Gauche : Sélecteur Interactif des Stratégies (5 cols) */}
           <div className="xl:col-span-5 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
@@ -1139,10 +1246,10 @@ export default function Jalon3Results() {
                       key={key}
                       type="button"
                       onClick={() => setSelectedStrategy(key)}
-                      className={`w-full text-left p-3 rounded-xl border transition-all ${
+                      className={`w-full text-left p-3 rounded-xl border transition-all duration-300 ease-out ${
                         isSelected
-                          ? 'bg-teal-50/70 border-teal-400 shadow-xs'
-                          : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100'
+                          ? 'bg-teal-50/70 border-teal-400 shadow-xs ring-1 ring-teal-300 scale-[1.01]'
+                          : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -1174,7 +1281,7 @@ export default function Jalon3Results() {
                   {resultsData?.targets?.map((target, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2 rounded-lg bg-emerald-50/60 border border-emerald-200/80 text-xs font-mono"
+                      className="flex items-center justify-between p-2 rounded-lg bg-emerald-50/60 border border-emerald-200/80 text-xs font-mono transition-all duration-300"
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
@@ -1216,7 +1323,7 @@ export default function Jalon3Results() {
                 </span>
               </div>
 
-              {/* Bar Chart : Comparaison des 5 Stratégies de Transfert */}
+              {/* Bar Chart Fluide : Comparaison des 5 Stratégies de Transfert */}
               <div>
                 <span className="text-xs font-semibold text-slate-800 block mb-2">
                   Gain Moyen par Stratégie de Transfert sur la Validation B :
@@ -1229,13 +1336,13 @@ export default function Jalon3Results() {
                       <div
                         key={strat.model}
                         onClick={() => setSelectedStrategy(strat.model)}
-                        className={`p-2 rounded-lg cursor-pointer transition ${
-                          isSelected ? 'bg-teal-50/80 border border-teal-200' : 'hover:bg-slate-50'
+                        className={`p-2 rounded-lg cursor-pointer transition-all duration-300 ease-out ${
+                          isSelected ? 'bg-teal-50/80 border border-teal-200 scale-[1.01]' : 'hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex justify-between text-xs mb-1">
                           <span
-                            className={`font-medium ${
+                            className={`font-medium transition-colors duration-200 ${
                               isSelected ? 'text-teal-900 font-bold' : 'text-slate-700'
                             }`}
                           >
@@ -1248,7 +1355,7 @@ export default function Jalon3Results() {
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
                           <div
                             style={{ width: `${Math.min(100, Math.max(5, gainVal * 3))}%` }}
-                            className={`h-full rounded-full transition-all ${
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${
                               strat.model === 'ajustement_complet'
                                 ? 'bg-teal-600'
                                 : isSelected
@@ -1288,13 +1395,13 @@ export default function Jalon3Results() {
                           <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex">
                             <div
                               style={{ width: `${(mod / maxVal) * 100}%` }}
-                              className="bg-teal-600 h-full rounded-full"
+                              className="bg-teal-600 h-full rounded-full transition-all duration-700 ease-out"
                             />
                           </div>
                           <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden flex">
                             <div
                               style={{ width: `${(ref / maxVal) * 100}%` }}
-                              className="bg-slate-300 h-full rounded-full"
+                              className="bg-slate-300 h-full rounded-full transition-all duration-700 ease-out"
                             />
                           </div>
                         </div>
