@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import Jalon3Results from './Jalon3Results';
 import ThermographyWorkbench from './ThermographyWorkbench';
+import GruSeriesWorkbench from './GruSeriesWorkbench';
 
 const API_BASE = '/api';
 
@@ -186,10 +187,6 @@ export default function App() {
   const [targetSite, setTargetSite] = useState('B');
   const [transferResult, setTransferResult] = useState(null);
 
-  // 6. GRU State
-  const [gruScenario, setGruScenario] = useState('ete_standard');
-  const [gruResult, setGruResult] = useState(null);
-
   // Animated smooth transition hooks (morphing fluide et interpolation continue)
   const animTabularPred = useAnimatedArray(tabularResult?.previsions_mw);
   const animTabularPers = useAnimatedArray(tabularResult?.persistance_mw);
@@ -209,8 +206,6 @@ export default function App() {
   const animTransferGain = useAnimatedNumber(transferResult?.gain_transfert_pct, 700);
   const animTransferRMSEZS = useAnimatedNumber(transferResult?.rmse_zeroshot, 700);
   const animTransferRMSEFT = useAnimatedNumber(transferResult?.rmse_finetuned, 700);
-
-  const animGruMW = useAnimatedArray(gruResult?.previsions_gru_mw, 700);
 
   // Telemetry log history
   const [telemetryLogs, setTelemetryLogs] = useState([
@@ -249,8 +244,7 @@ export default function App() {
       runSkyPrediction('clear', true);
       runEnrichedPrediction(true);
       runMotionPrediction('incoming_cloud', true);
-      // Jalon 3 charge ses mesures archivées dans son propre composant.
-      runGruPrediction('ete_standard', true);
+      // Jalon 3 et 4 gèrent leurs inférences de banc d'essai dans leurs composants dédiés.
     } catch (err) {
       console.error(err);
       setErrorMessage("Impossible de joindre le backend FastAPI. Vérifiez qu'il est bien démarré sur le port 8000.");
@@ -511,35 +505,6 @@ export default function App() {
     } catch (err) {
       setErrorMessage(err.message);
       addLog('Erreur CNN Mouvement', err.message);
-    } finally {
-      if (!silent) setIsLoading(false);
-    }
-  };
-
-  // 6. Run GRU Prediction
-  const runGruPrediction = async (scenarioOverride = null, isSilent = false) => {
-    const silent = isSilent === true;
-    if (!silent) setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const scen = typeof scenarioOverride === 'string' ? scenarioOverride : gruScenario;
-      const payload = { scenario_id: scen };
-
-      const res = await fetch(`${API_BASE}/predict/gru`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error((await res.json()).detail || 'Erreur GRU');
-      const data = await res.json();
-      setGruResult(data);
-      if (!silent) {
-        addLog('GRU Seq2Seq', 'Décodage récurrent pas-à-pas des 6 horizons calculé.');
-      }
-    } catch (err) {
-      setErrorMessage(err.message);
-      addLog('Erreur GRU', err.message);
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -3457,171 +3422,8 @@ export default function App() {
         {/* MODULE 6: Transfert de Site (Jalon 3) */}
         {activeTab === 'transfer' && <Jalon3Results />}
 
-        {/* MODULE 7: Séries Temporelles (Encodeur-Décodeur GRU - Jalon 4) */}
-        {activeTab === 'gru' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
-            {/* Left Controls (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-4">
-              <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div>
-                    <h3 className="font-semibold text-slate-900 text-sm">Séquences Temporelles (48h)</h3>
-                  </div>
-                  <span className="text-[10px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded">
-                    Encodeur-Décodeur GRU
-                  </span>
-                </div>
-
-                <p className="text-xs text-slate-500 mt-3">
-                  Modélise la centrale comme un processus séquentiel : 48 pas de temps passés (6 variables) encodés dans un état latent, décodés avec les prévisions météo futures.
-                </p>
-
-                <div className="mt-4">
-                  <label className="text-xs font-medium text-slate-700 block mb-1.5">Scénarios Séquentiels Réels</label>
-                  <div className="space-y-2">
-                    {[
-                      { id: 'ete_standard', label: 'Cycle Solaire Nominal', sub: 'Journée estivale complète (Ouarzazate)' },
-                      { id: 'passage_nuageux', label: 'Transition Ciel Couvert', sub: 'Refroidissement & chute irradiance' },
-                      { id: 'tempete_sable', label: 'Tempête de Sable', sub: 'Chute abrupte GHI & encrassement' },
-                    ].map((sc) => (
-                      <div
-                        key={sc.id}
-                        onClick={() => {
-                          setGruScenario(sc.id);
-                          runGruPrediction(sc.id, true);
-                        }}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition ${
-                          gruScenario === sc.id
-                            ? 'bg-teal-50 border-teal-300 ring-2 ring-teal-500/20 shadow-xs'
-                            : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <span className="font-bold text-xs block text-slate-900">{sc.label}</span>
-                        <span className="text-[10px] text-slate-500 block mt-0.5">{sc.sub}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                  <span className="font-semibold text-slate-800 block mb-1">Architecture Récurrente du Modèle :</span>
-                  <div className="font-mono text-[11px] text-slate-600 space-y-1">
-                    <div>• Entrée Encodeur : <span className="font-bold text-slate-800">(48, 6)</span></div>
-                    <div>• Entrée Décodeur : <span className="font-bold text-slate-800">(6, 5)</span></div>
-                    <div>• Vecteur Latent : <span className="font-bold text-slate-800">36 unités GRU</span></div>
-                    <div>• Décodage récurrent : <span className="font-bold text-slate-800">TimeDistributed Dense</span></div>
-                  </div>
-                </div>
-
-                {/* Statut Automatique */}
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-teal-700 font-semibold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Décodage récurrent actif
-                  </span>
-                  <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                    6 pas auto-décodés
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Trace Results (7 cols) */}
-            <div className="lg:col-span-7 flex flex-col gap-4">
-              <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 flex flex-col justify-between min-h-[380px]">
-                <div>
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div>
-                      <h3 className="font-semibold text-slate-900 text-sm">Décodage Pas-à-Pas des 6 Horizons</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Sortie de l'architecture Encodeur-Décodeur</p>
-                    </div>
-                  </div>
-
-                  {gruResult ? (
-                    <div className="mt-6 flex flex-col gap-4">
-                      {/* Responsive Decoded Curve */}
-                      <div className="w-full h-48 relative">
-                        <svg className="w-full h-full overflow-visible" viewBox="0 0 500 160">
-                          {[0, 40, 80, 120].map((y) => (
-                            <line key={y} x1="30" y1={y} x2="490" y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
-                          ))}
-
-                          <polyline
-                            fill="none"
-                            stroke="#0d9488"
-                            strokeWidth="3.5"
-                            strokeLinecap="round"
-                            points={animGruMW
-                              .map((val, idx) => `${50 + idx * 80},${130 - (val / capaciteNominale) * 120}`)
-                              .join(' ')}
-                          />
-
-                          {animGruMW.map((val, idx) => {
-                            const cx = 50 + idx * 80;
-                            const cy = 130 - (val / capaciteNominale) * 120;
-                            return (
-                              <g key={idx}>
-                                <circle cx={cx} cy={cy} r="4.5" fill="#0d9488" stroke="#ffffff" strokeWidth="2" />
-                                <text
-                                  x={cx}
-                                  y={cy - 9}
-                                  fontSize="10"
-                                  fontWeight="bold"
-                                  fontFamily="monospace"
-                                  fill="#0f172a"
-                                  textAnchor="middle"
-                                >
-                                  {val.toFixed(1)} MW
-                                </text>
-                                <text x={cx} y="152" fontSize="10" fontFamily="sans-serif" fill="#64748b" textAnchor="middle">
-                                  t+{idx + 1}h
-                                </text>
-                              </g>
-                            );
-                          })}
-                        </svg>
-                      </div>
-
-                      {/* Decoding trace table */}
-                      <div className="mt-2 overflow-x-auto">
-                        <table className="w-full text-xs text-left border-collapse">
-                          <thead>
-                            <tr className="border-b border-slate-200 text-slate-500 text-[11px]">
-                              <th className="py-1.5 px-2">Horizon</th>
-                              <th className="py-1.5 px-2">Puissance Décodée</th>
-                              <th className="py-1.5 px-2">Irradiance Future</th>
-                              <th className="py-1.5 px-2">Statut Encodeur</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {gruResult.decodage_etapes.map((st, i) => (
-                              <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 font-mono text-[11px]">
-                                <td className="py-1.5 px-2 font-bold text-slate-800">{st.horizon}</td>
-                                <td className="py-1.5 px-2 text-teal-700 font-bold">{animGruMW[i] !== undefined ? animGruMW[i].toFixed(1) : st.valeur_mw} MW</td>
-                                <td className="py-1.5 px-2 text-slate-600">{st.irradiance_future} W/m²</td>
-                                <td className="py-1.5 px-2 text-slate-500 font-sans text-[10px]">{st.etat_cellule_gru}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="py-16 flex flex-col items-center justify-center text-center">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3">
-                        GRU
-                      </div>
-                      <p className="text-xs font-medium text-slate-700">Aucune séquence décodée</p>
-                      <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
-                        Cliquez sur "Décoder la Séquence GRU" pour visualiser la mémoire temporelle récurrente.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* MODULE 7: Séries Temporelles Récurrentes (RNN, LSTM, GRU - Jalon 4) */}
+        {activeTab === 'gru' && <GruSeriesWorkbench capaciteNominale={capaciteNominale} />}
       </main>
 
       {/* 5. Modale Popup avec Frosted Glass (Configuration Rapide) */}
