@@ -5,16 +5,18 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-// Hook pour animer un nombre unique de manière continue (650ms)
+// Hook pour animer un nombre unique de manière continue (650ms) : s'anime depuis 0 à l'ouverture
 function useAnimatedNumber(targetNumber, duration = 650, decimals = 2) {
-  const [current, setCurrent] = useState(Number(targetNumber || 0));
-  const startRef = useRef(Number(targetNumber || 0));
+  const target =
+    targetNumber !== null && targetNumber !== undefined && !isNaN(targetNumber)
+      ? Number(targetNumber)
+      : 0;
+  const [current, setCurrent] = useState(0);
+  const startRef = useRef(0);
   const startTimeRef = useRef(0);
 
   useEffect(() => {
-    if (targetNumber === null || targetNumber === undefined || isNaN(targetNumber)) return;
     const start = startRef.current;
-    const target = Number(targetNumber);
     startTimeRef.current = performance.now();
 
     let frameId;
@@ -34,7 +36,7 @@ function useAnimatedNumber(targetNumber, duration = 650, decimals = 2) {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [targetNumber, duration, decimals]);
+  }, [target, duration, decimals]);
 
   return current;
 }

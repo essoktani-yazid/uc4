@@ -12,21 +12,26 @@ function easeOutCubic(t) {
 }
 
 // Hook pour animer un tableau de valeurs numériques avec morphing fluide (650ms)
-function useAnimatedArray(targetArray, duration = 650) {
-  const [current, setCurrent] = useState(targetArray || []);
-  const startRef = useRef(targetArray || []);
-  const targetRef = useRef(targetArray || []);
+function useAnimatedArray(targetArray, duration = 650, trigger = null) {
+  const [current, setCurrent] = useState(() =>
+    targetArray && targetArray.length > 0 ? new Array(targetArray.length).fill(0) : []
+  );
+  const startRef = useRef(new Array(targetArray?.length || 0).fill(0));
   const startTimeRef = useRef(0);
+  const prevTriggerRef = useRef(trigger);
   const targetKey = JSON.stringify(targetArray);
 
   useEffect(() => {
     if (!targetArray || targetArray.length === 0) return;
 
-    const start = startRef.current.length === targetArray.length
-      ? [...startRef.current]
-      : new Array(targetArray.length).fill(0);
+    const triggerChanged = prevTriggerRef.current !== trigger;
+    prevTriggerRef.current = trigger;
+
+    const start =
+      !triggerChanged && startRef.current && startRef.current.length === targetArray.length
+        ? [...startRef.current]
+        : new Array(targetArray.length).fill(0);
     const target = [...targetArray];
-    targetRef.current = target;
     startTimeRef.current = performance.now();
 
     let frameId;
@@ -50,21 +55,27 @@ function useAnimatedArray(targetArray, duration = 650) {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [targetKey, duration]);
+  }, [targetKey, duration, trigger]);
 
   return current;
 }
 
 // Hook pour animer un nombre unique de manière continue (jauges, pourcentages)
-function useAnimatedNumber(targetNumber, duration = 650) {
-  const [current, setCurrent] = useState(Number(targetNumber || 0));
-  const startRef = useRef(Number(targetNumber || 0));
+function useAnimatedNumber(targetNumber, duration = 650, decimals = 1, trigger = null) {
+  const target =
+    targetNumber !== null && targetNumber !== undefined && !isNaN(targetNumber)
+      ? Number(targetNumber)
+      : 0;
+  const [current, setCurrent] = useState(0);
+  const startRef = useRef(0);
   const startTimeRef = useRef(0);
+  const prevTriggerRef = useRef(trigger);
 
   useEffect(() => {
-    if (targetNumber === null || targetNumber === undefined) return;
-    const start = startRef.current;
-    const target = Number(targetNumber);
+    const triggerChanged = prevTriggerRef.current !== trigger;
+    prevTriggerRef.current = trigger;
+
+    const start = triggerChanged ? 0 : startRef.current;
     startTimeRef.current = performance.now();
 
     let frameId;
@@ -72,7 +83,7 @@ function useAnimatedNumber(targetNumber, duration = 650) {
       const elapsed = now - startTimeRef.current;
       const progress = Math.min(1, elapsed / duration);
       const ease = easeOutCubic(progress);
-      const next = Number((start + (target - start) * ease).toFixed(1));
+      const next = Number((start + (target - start) * ease).toFixed(decimals));
 
       setCurrent(next);
       startRef.current = next;
@@ -84,7 +95,7 @@ function useAnimatedNumber(targetNumber, duration = 650) {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [targetNumber, duration]);
+  }, [target, duration, decimals, trigger]);
 
   return current;
 }
@@ -187,25 +198,34 @@ export default function App() {
   const [targetSite, setTargetSite] = useState('B');
   const [transferResult, setTransferResult] = useState(null);
 
-  // Animated smooth transition hooks (morphing fluide et interpolation continue)
-  const animTabularPred = useAnimatedArray(tabularResult?.previsions_mw);
-  const animTabularPers = useAnimatedArray(tabularResult?.persistance_mw);
+  // Animated smooth transition hooks (morphing fluide et interpolation continue avec trigger d'onglet)
+  const animTabularPred = useAnimatedArray(tabularResult?.previsions_mw, 650, activeTab);
+  const animTabularPers = useAnimatedArray(tabularResult?.persistance_mw, 650, activeTab);
 
-  const animCouverture = useAnimatedNumber(skyResult?.couverture_nuageuse_pct);
-  const animOccultation = useAnimatedNumber(skyResult?.occultation_soleil_pct);
+  const animCouverture = useAnimatedNumber(skyResult?.couverture_nuageuse_pct, 650, 1, activeTab);
+  const animOccultation = useAnimatedNumber(skyResult?.occultation_soleil_pct, 650, 1, activeTab);
 
-  const animEnrichedClassique = useAnimatedArray(enrichedResult?.previsions_classique_mw);
-  const animEnrichedEnrichi = useAnimatedArray(enrichedResult?.previsions_enrichi_mw);
-  const animEnrichedPers = useAnimatedArray(enrichedResult?.persistance_mw || tabularResult?.persistance_mw);
-  const animEnrichedGain = useAnimatedNumber(enrichedResult?.gain_moyen_pct);
+  const animEnrichedClassique = useAnimatedArray(enrichedResult?.previsions_classique_mw, 650, activeTab);
+  const animEnrichedEnrichi = useAnimatedArray(enrichedResult?.previsions_enrichi_mw, 650, activeTab);
+  const animEnrichedPers = useAnimatedArray(enrichedResult?.persistance_mw || tabularResult?.persistance_mw, 650, activeTab);
+  const animEnrichedGain = useAnimatedNumber(enrichedResult?.gain_moyen_pct, 650, 1, activeTab);
 
-  const animMotionOcc = useAnimatedNumber(motionResult?.occultation_tp1_pct);
+  const animMotionOcc = useAnimatedNumber(motionResult?.occultation_tp1_pct, 650, 1, activeTab);
 
-  const animTransferZS = useAnimatedArray(transferResult?.previsions_zeroshot_mw, 700);
-  const animTransferFT = useAnimatedArray(transferResult?.previsions_finetuned_mw, 700);
-  const animTransferGain = useAnimatedNumber(transferResult?.gain_transfert_pct, 700);
-  const animTransferRMSEZS = useAnimatedNumber(transferResult?.rmse_zeroshot, 700);
-  const animTransferRMSEFT = useAnimatedNumber(transferResult?.rmse_finetuned, 700);
+  const animTransferZS = useAnimatedArray(transferResult?.previsions_zeroshot_mw, 700, activeTab);
+  const animTransferFT = useAnimatedArray(transferResult?.previsions_finetuned_mw, 700, activeTab);
+  const animTransferGain = useAnimatedNumber(transferResult?.gain_transfert_pct, 700, 1, activeTab);
+  const animTransferRMSEZS = useAnimatedNumber(transferResult?.rmse_zeroshot, 700, 2, activeTab);
+  const animTransferRMSEFT = useAnimatedNumber(transferResult?.rmse_finetuned, 700, 2, activeTab);
+
+  // Dashboard KPIs animés
+  const animDashPower = useAnimatedNumber(
+    animTabularPred.length > 0 ? animTabularPred[0] : 48.2,
+    650,
+    1,
+    activeTab
+  );
+  const animDashEnergy = useAnimatedNumber(342.8, 650, 1, activeTab);
 
   // Telemetry log history
   const [telemetryLogs, setTelemetryLogs] = useState([
@@ -843,14 +863,12 @@ export default function App() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
                       <span className="text-[10px] text-slate-500 uppercase font-semibold block">Puissance Actuelle</span>
-                      <p className="font-mono text-lg font-bold text-slate-900 mt-0.5">
-                        {animTabularPred.length > 0 ? animTabularPred[0].toFixed(1) : '48.2'}{' '}
+                      <p className="font-mono tabular-nums text-lg font-bold text-slate-900 mt-0.5">
+                        {animDashPower.toFixed(1)}{' '}
                         <span className="text-xs font-normal text-slate-500">MW</span>
                       </p>
-                      <span className="text-[10px] text-emerald-600 font-medium">
-                        {animTabularPred.length > 0
-                          ? `${((animTabularPred[0] / capaciteNominale) * 100).toFixed(1)}% de la capacité`
-                          : '96.4% de la capacité'}
+                      <span className="text-[10px] text-emerald-600 font-medium tabular-nums">
+                        {((animDashPower / capaciteNominale) * 100).toFixed(1)}% de la capacité
                       </span>
                     </div>
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
@@ -869,7 +887,9 @@ export default function App() {
                     </div>
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
                       <span className="text-[10px] text-slate-500 uppercase font-semibold block">Énergie Cumulée Jour</span>
-                      <p className="font-mono text-lg font-bold text-teal-700 mt-0.5">342.8 <span className="text-xs font-normal text-slate-500">MWh</span></p>
+                      <p className="font-mono tabular-nums text-lg font-bold text-teal-700 mt-0.5">
+                        {animDashEnergy.toFixed(1)} <span className="text-xs font-normal text-slate-500">MWh</span>
+                      </p>
                       <span className="text-[10px] text-teal-600 font-medium">+4.8% vs moyenne estivale</span>
                     </div>
                   </div>
@@ -898,12 +918,36 @@ export default function App() {
                         strokeLinecap="round"
                         d="M 40,110 Q 150,110 210,50 T 320,15 T 410,65 T 510,110"
                       />
-                      {/* Point actuel */}
-                      <circle cx="320" cy={110 - (animTabularPred[0] ? (animTabularPred[0] / capaciteNominale) * 95 : 95)} r="5" fill="#f59e0b" stroke="#ffffff" strokeWidth="2.5" />
-                      <text x="320" y={100 - (animTabularPred[0] ? (animTabularPred[0] / capaciteNominale) * 95 : 95)} fontSize="10" fontWeight="bold" fontFamily="monospace" fill="#0f172a" textAnchor="middle">
-                        Midi ({animTabularPred.length > 0 ? animTabularPred[0].toFixed(1) : '48.2'} MW)
+                      {/* Point actuel avec transition fluide */}
+                      <circle
+                        cx="320"
+                        cy={110 - (animDashPower / capaciteNominale) * 95}
+                        r="5"
+                        fill="#f59e0b"
+                        stroke="#ffffff"
+                        strokeWidth="2.5"
+                        className="transition-transform duration-200 hover:scale-125"
+                      />
+                      <text
+                        x="320"
+                        y={100 - (animDashPower / capaciteNominale) * 95}
+                        fontSize="10"
+                        fontWeight="bold"
+                        fontFamily="monospace"
+                        fill="#0f172a"
+                        textAnchor="middle"
+                        className="tabular-nums select-none"
+                      >
+                        Midi ({animDashPower.toFixed(1)} MW)
                       </text>
-                      <line x1="320" y1={110 - (animTabularPred[0] ? (animTabularPred[0] / capaciteNominale) * 95 : 95)} x2="320" y2="110" stroke="#f59e0b" strokeDasharray="2 2" />
+                      <line
+                        x1="320"
+                        y1={110 - (animDashPower / capaciteNominale) * 95}
+                        x2="320"
+                        y2="110"
+                        stroke="#f59e0b"
+                        strokeDasharray="2 2"
+                      />
 
                       {/* X axis labels */}
                       <text x="50" y="126" fontSize="9" fill="#94a3b8" fontFamily="sans-serif">06:00 (Lever)</text>

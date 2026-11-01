@@ -5,11 +5,12 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-// Hook d'animation pour tableau de nombres (courbes SVG)
+// Hook d'animation pour tableau de nombres (courbes SVG) : s'anime depuis 0 à l'ouverture
 function useAnimatedArray(targetArray, duration = 650) {
-  const [current, setCurrent] = useState(targetArray || []);
-  const startRef = useRef(targetArray || []);
-  const targetRef = useRef(targetArray || []);
+  const [current, setCurrent] = useState(() =>
+    targetArray && targetArray.length > 0 ? new Array(targetArray.length).fill(0) : []
+  );
+  const startRef = useRef(new Array(targetArray?.length || 0).fill(0));
   const startTimeRef = useRef(0);
   const targetKey = JSON.stringify(targetArray);
 
@@ -21,7 +22,6 @@ function useAnimatedArray(targetArray, duration = 650) {
         ? [...startRef.current]
         : new Array(targetArray.length).fill(0);
     const target = [...targetArray];
-    targetRef.current = target;
     startTimeRef.current = performance.now();
 
     let frameId;
@@ -50,16 +50,18 @@ function useAnimatedArray(targetArray, duration = 650) {
   return current;
 }
 
-// Hook d'animation pour un scalaire unique (KPIs)
+// Hook d'animation pour un scalaire unique (KPIs) : s'anime depuis 0 à l'ouverture
 function useAnimatedNumber(targetNumber, duration = 650, decimals = 1) {
-  const [current, setCurrent] = useState(Number(targetNumber || 0));
-  const startRef = useRef(Number(targetNumber || 0));
+  const target =
+    targetNumber !== null && targetNumber !== undefined && !isNaN(targetNumber)
+      ? Number(targetNumber)
+      : 0;
+  const [current, setCurrent] = useState(0);
+  const startRef = useRef(0);
   const startTimeRef = useRef(0);
 
   useEffect(() => {
-    if (targetNumber === null || targetNumber === undefined || isNaN(targetNumber)) return;
     const start = startRef.current;
-    const target = Number(targetNumber);
     startTimeRef.current = performance.now();
 
     let frameId;
@@ -79,10 +81,44 @@ function useAnimatedNumber(targetNumber, duration = 650, decimals = 1) {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [targetNumber, duration, decimals]);
+  }, [target, duration, decimals]);
 
   return current;
 }
+
+// Données initiales calibrées pour un départ d'animation immédiat sans temps d'attente
+const DEFAULT_JALON4_RESULT = {
+  history_hours: 48,
+  model_type: 'gru',
+  generation_strategy: 'seq2seq',
+  scenario_id: 'poussiere_veille',
+  site: 'A',
+  sequential_mw: [14.2, 28.5, 38.1, 41.2, 33.0, 18.4],
+  mlp_ref_mw: [15.1, 31.8, 44.5, 48.2, 39.8, 22.0],
+  persistence_mw: [16.0, 32.5, 43.0, 45.0, 36.0, 20.0],
+  actual_mw: [13.9, 27.9, 37.8, 40.5, 32.4, 17.8],
+  rmse_sequential: 0.81,
+  rmse_mlp: 4.12,
+  gain_moyen_h1_h6: 0.338,
+  gain_h1: 0.195,
+  gain_target_met: true,
+  model_size_mb: 0.038,
+  model_params: 9433,
+  decision_analysis: {
+    summary:
+      "Le modèle GRU (historique 48h) a mémorisé l'encrassement des panneaux d'hier, ajustant la prévision à la baisse par rapport au MLP classique.",
+    details: 'Cellule GRU 36 unités en Encodeur-Décodeur (Seq2Seq).',
+    gain_pct: '+33.8 %',
+  },
+  decoding_steps: [
+    { horizon: 't+1h', sequential_mw: 14.2, mlp_ref_mw: 15.1, persistence_mw: 16.0, actual_mw: 13.9, irradiance_future: 310, gate_state: 'r=0.42, z=0.58' },
+    { horizon: 't+2h', sequential_mw: 28.5, mlp_ref_mw: 31.8, persistence_mw: 32.5, actual_mw: 27.9, irradiance_future: 620, gate_state: 'r=0.61, z=0.74' },
+    { horizon: 't+3h', sequential_mw: 38.1, mlp_ref_mw: 44.5, persistence_mw: 43.0, actual_mw: 37.8, irradiance_future: 840, gate_state: 'r=0.78, z=0.88' },
+    { horizon: 't+4h', sequential_mw: 41.2, mlp_ref_mw: 48.2, persistence_mw: 45.0, actual_mw: 40.5, irradiance_future: 910, gate_state: 'r=0.82, z=0.91' },
+    { horizon: 't+5h', sequential_mw: 33.0, mlp_ref_mw: 39.8, persistence_mw: 36.0, actual_mw: 32.4, irradiance_future: 730, gate_state: 'r=0.69, z=0.80' },
+    { horizon: 't+6h', sequential_mw: 18.4, mlp_ref_mw: 22.0, persistence_mw: 20.0, actual_mw: 17.8, irradiance_future: 410, gate_state: 'r=0.48, z=0.63' },
+  ],
+};
 
 export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
   // 1. Contrôles du Panneau Gauche
@@ -92,7 +128,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
   const [scenarioId, setScenarioId] = useState('poussiere_veille'); // 'poussiere_veille' | 'encrassement_progressif' | 'cycle_nominal'
 
   // État des résultats & de l'inférence
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(DEFAULT_JALON4_RESULT);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -151,13 +187,14 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
   const animModelSize = useAnimatedNumber(result?.model_size_mb ?? 0.038, 650, 3);
   const animParams = useAnimatedNumber(result?.model_params ?? 9433, 650, 0);
 
-  const cap = capaciteNominale || 50.0;
-
-  // Calcul du delta au pic (H3) entre MLP et modèle séquentiel
+  // Delta et RMSE animés en continu
   const deltaPeak =
     result?.mlp_ref_mw && result?.sequential_mw
-      ? (result.mlp_ref_mw[2] - result.sequential_mw[2]).toFixed(1)
-      : '0.0';
+      ? Math.max(0, result.mlp_ref_mw[2] - result.sequential_mw[2])
+      : 7.0;
+  const animDeltaPeak = useAnimatedNumber(deltaPeak, 650, 1);
+  const animRmseSeq = useAnimatedNumber(result?.rmse_sequential ?? 0.81, 650, 2);
+  const animRmseMlp = useAnimatedNumber(result?.rmse_mlp ?? 4.12, 650, 2);
 
   return (
     <div className="space-y-4 animate-tab-enter">
@@ -497,8 +534,24 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
 
                     return (
                       <g key={idx}>
-                        <circle cx={cx} cy={cyMlp} r="3" fill="#d97706" stroke="#ffffff" strokeWidth="1" />
-                        <circle cx={cx} cy={cySeq} r="4.5" fill="#0d9488" stroke="#ffffff" strokeWidth="2" />
+                        <circle
+                          cx={cx}
+                          cy={cyMlp}
+                          r="3"
+                          fill="#d97706"
+                          stroke="#ffffff"
+                          strokeWidth="1"
+                          className="transition-transform duration-200 hover:scale-125"
+                        />
+                        <circle
+                          cx={cx}
+                          cy={cySeq}
+                          r="4.5"
+                          fill="#0d9488"
+                          stroke="#ffffff"
+                          strokeWidth="2"
+                          className="transition-transform duration-200 hover:scale-125"
+                        />
                         <text
                           x={cx}
                           y={cySeq - 8}
@@ -507,6 +560,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                           fontFamily="monospace"
                           fill="#0f172a"
                           textAnchor="middle"
+                          className="tabular-nums select-none"
                         >
                           {val.toFixed(1)}
                         </text>
@@ -530,7 +584,8 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
             <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono text-slate-500">
               <span>H1 à H6 · Plafond onduleur 50 MWc</span>
               <span>
-                RMSE : <strong className="text-teal-700">{result?.rmse_sequential ?? '—'} MW</strong> vs MLP : {result?.rmse_mlp ?? '—'} MW
+                RMSE : <strong className="text-teal-700 tabular-nums">{animRmseSeq.toFixed(2)} MW</strong> vs MLP :{' '}
+                <span className="tabular-nums">{animRmseMlp.toFixed(2)} MW</span>
               </span>
             </div>
           </div>
@@ -539,7 +594,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
               <span className="text-[10px] font-mono text-slate-500 uppercase block">Gain Moyen H1-H6</span>
-              <div className="font-mono text-lg font-black text-teal-700">
+              <div className="font-mono tabular-nums text-lg font-black text-teal-700">
                 +{animGainMoyen.toFixed(1)} %
               </div>
               <span className={`inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold ${
@@ -553,7 +608,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
 
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
               <span className="text-[10px] font-mono text-slate-500 uppercase block">Taille Modèle</span>
-              <div className="font-mono text-lg font-black text-slate-800">
+              <div className="font-mono tabular-nums text-lg font-black text-slate-800">
                 {animModelSize.toFixed(3)} Mo
               </div>
               <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -563,7 +618,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
 
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
               <span className="text-[10px] font-mono text-slate-500 uppercase block">Paramètres</span>
-              <div className="font-mono text-lg font-black text-slate-800">
+              <div className="font-mono tabular-nums text-lg font-black text-slate-800">
                 {Math.round(animParams).toLocaleString('fr-FR')}
               </div>
               <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold bg-teal-50 text-teal-700 border border-teal-200">
@@ -573,7 +628,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
 
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-3 space-y-1">
               <span className="text-[10px] font-mono text-slate-500 uppercase block">Gain H1 (1h)</span>
-              <div className="font-mono text-lg font-black text-emerald-700">
+              <div className="font-mono tabular-nums text-lg font-black text-emerald-700">
                 +{animGainH1.toFixed(1)} %
               </div>
               <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -592,8 +647,8 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
                   `Le modèle ${modelType.toUpperCase()} (historique ${historyHours}h) a mémorisé l'encrassement des panneaux d'hier, ajustant la prévision à la baisse par rapport au MLP classique.`}
               </p>
             </div>
-            <span className="shrink-0 text-[10px] font-mono font-bold bg-white text-teal-800 px-2 py-1 rounded border border-teal-200 shadow-2xs">
-              Δ vs MLP : -{deltaPeak} MW
+            <span className="shrink-0 text-[10px] font-mono tabular-nums font-bold bg-white text-teal-800 px-2 py-1 rounded border border-teal-200 shadow-2xs">
+              Δ vs MLP : -{animDeltaPeak.toFixed(1)} MW
             </span>
           </div>
 

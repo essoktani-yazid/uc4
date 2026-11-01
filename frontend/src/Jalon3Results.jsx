@@ -6,22 +6,26 @@ function easeOutCubic(t) {
 }
 
 // Hook pour animer un tableau de valeurs numériques avec morphing fluide (650ms)
-function useAnimatedArray(targetArray, duration = 650) {
-  const [current, setCurrent] = useState(targetArray || []);
-  const startRef = useRef(targetArray || []);
-  const targetRef = useRef(targetArray || []);
+function useAnimatedArray(targetArray, duration = 650, trigger = null) {
+  const [current, setCurrent] = useState(() =>
+    targetArray && targetArray.length > 0 ? new Array(targetArray.length).fill(0) : []
+  );
+  const startRef = useRef(new Array(targetArray?.length || 0).fill(0));
   const startTimeRef = useRef(0);
+  const prevTriggerRef = useRef(trigger);
   const targetKey = JSON.stringify(targetArray);
 
   useEffect(() => {
     if (!targetArray || targetArray.length === 0) return;
 
+    const triggerChanged = prevTriggerRef.current !== trigger;
+    prevTriggerRef.current = trigger;
+
     const start =
-      startRef.current && startRef.current.length === targetArray.length
+      !triggerChanged && startRef.current && startRef.current.length === targetArray.length
         ? [...startRef.current]
         : new Array(targetArray.length).fill(0);
     const target = [...targetArray];
-    targetRef.current = target;
     startTimeRef.current = performance.now();
 
     let frameId;
@@ -45,21 +49,27 @@ function useAnimatedArray(targetArray, duration = 650) {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [targetKey, duration]);
+  }, [targetKey, duration, trigger]);
 
   return current;
 }
 
 // Hook pour animer un nombre unique de manière continue (jauges, pourcentages)
-function useAnimatedNumber(targetNumber, duration = 650, decimals = 2) {
-  const [current, setCurrent] = useState(Number(targetNumber || 0));
-  const startRef = useRef(Number(targetNumber || 0));
+function useAnimatedNumber(targetNumber, duration = 650, decimals = 2, trigger = null) {
+  const target =
+    targetNumber !== null && targetNumber !== undefined && !isNaN(targetNumber)
+      ? Number(targetNumber)
+      : 0;
+  const [current, setCurrent] = useState(0);
+  const startRef = useRef(0);
   const startTimeRef = useRef(0);
+  const prevTriggerRef = useRef(trigger);
 
   useEffect(() => {
-    if (targetNumber === null || targetNumber === undefined || isNaN(targetNumber)) return;
-    const start = startRef.current;
-    const target = Number(targetNumber);
+    const triggerChanged = prevTriggerRef.current !== trigger;
+    prevTriggerRef.current = trigger;
+
+    const start = triggerChanged ? 0 : startRef.current;
     startTimeRef.current = performance.now();
 
     let frameId;
@@ -79,10 +89,28 @@ function useAnimatedNumber(targetNumber, duration = 650, decimals = 2) {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [targetNumber, duration, decimals]);
+  }, [target, duration, decimals, trigger]);
 
   return current;
 }
+
+// Données initiales pour affichage et animation immédiats sans temps mort
+const DEFAULT_JALON3_PROD = {
+  timestamps: [
+    '2025-04-15 11:00:00',
+    '2025-04-15 12:00:00',
+    '2025-04-15 13:00:00',
+    '2025-04-15 14:00:00',
+    '2025-04-15 15:00:00',
+    '2025-04-15 16:00:00',
+  ],
+  fineTunedMW: [8.8, 14.5, 17.2, 16.8, 12.4, 6.2],
+  zeroShotMW: [7.2, 12.1, 14.8, 14.1, 10.3, 5.1],
+  actualMW: [8.9, 14.8, 17.0, 16.5, 12.2, 6.0],
+  referenceMW: [9.5, 15.5, 18.0, 17.2, 13.0, 6.8],
+  maeFineTunedMW: 0.28,
+  maeZeroShotMW: 2.14,
+};
 
 // Formatters
 const fmt = (val, digits = 2) => {
@@ -143,7 +171,7 @@ export default function Jalon3Results() {
 
   // 1. Production Test State (Site B, 20 MW)
   const [prodIndex, setProdIndex] = useState(250);
-  const [prodResult, setProdResult] = useState(null);
+  const [prodResult, setProdResult] = useState(DEFAULT_JALON3_PROD);
   const [prodLoading, setProdLoading] = useState(false);
   const [prodError, setProdError] = useState('');
 
@@ -153,27 +181,27 @@ export default function Jalon3Results() {
   const capNominaleB = 20.0; // 20 MW sur Site B
 
   // === ANIMATIONS FLUIDES POUR LA PRODUCTION ===
-  const animFineTuned = useAnimatedArray(prodResult?.fineTunedMW, 650);
-  const animZeroShot = useAnimatedArray(prodResult?.zeroShotMW, 650);
-  const animActual = useAnimatedArray(prodResult?.actualMW, 650);
-  const animReference = useAnimatedArray(prodResult?.referenceMW, 650);
+  const animFineTuned = useAnimatedArray(prodResult?.fineTunedMW, 650, activeSubTab);
+  const animZeroShot = useAnimatedArray(prodResult?.zeroShotMW, 650, activeSubTab);
+  const animActual = useAnimatedArray(prodResult?.actualMW, 650, activeSubTab);
+  const animReference = useAnimatedArray(prodResult?.referenceMW, 650, activeSubTab);
 
   // Animated KPI numbers
   const meanFT = prodResult?.fineTunedMW ? prodResult.fineTunedMW.reduce((a, b) => a + b, 0) / 6 : 0;
   const meanZS = prodResult?.zeroShotMW ? prodResult.zeroShotMW.reduce((a, b) => a + b, 0) / 6 : 0;
   const meanAct = prodResult?.actualMW ? prodResult.actualMW.reduce((a, b) => a + b, 0) / 6 : 0;
 
-  const animMeanFT = useAnimatedNumber(meanFT, 650, 2);
-  const animMeanZS = useAnimatedNumber(meanZS, 650, 2);
-  const animMeanAct = useAnimatedNumber(meanAct, 650, 2);
-  const animMaeFT = useAnimatedNumber(prodResult?.maeFineTunedMW, 650, 2);
-  const animMaeZS = useAnimatedNumber(prodResult?.maeZeroShotMW, 650, 2);
+  const animMeanFT = useAnimatedNumber(meanFT, 650, 2, activeSubTab);
+  const animMeanZS = useAnimatedNumber(meanZS, 650, 2, activeSubTab);
+  const animMeanAct = useAnimatedNumber(meanAct, 650, 2, activeSubTab);
+  const animMaeFT = useAnimatedNumber(prodResult?.maeFineTunedMW, 650, 2, activeSubTab);
+  const animMaeZS = useAnimatedNumber(prodResult?.maeZeroShotMW, 650, 2, activeSubTab);
 
   const transferGain =
     prodResult?.maeZeroShotMW && prodResult?.maeFineTunedMW
       ? ((prodResult.maeZeroShotMW - prodResult.maeFineTunedMW) / (prodResult.maeZeroShotMW || 1)) * 100
       : 26.6;
-  const animGain = useAnimatedNumber(transferGain, 650, 1);
+  const animGain = useAnimatedNumber(transferGain, 650, 1, activeSubTab);
 
   // Load sample counts & results data on mount
   useEffect(() => {
@@ -898,7 +926,7 @@ export default function Jalon3Results() {
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
                           <div
                             style={{ width: `${Math.min(100, Math.max(5, gainVal * 3))}%` }}
-                            className={`h-full rounded-full transition-all duration-700 ease-out ${
+                            className={`h-full rounded-full transition-all duration-700 ease-out animate-bar-grow ${
                               strat.model === 'ajustement_complet'
                                 ? 'bg-teal-600'
                                 : isSelected
@@ -938,13 +966,13 @@ export default function Jalon3Results() {
                           <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex">
                             <div
                               style={{ width: `${(mod / maxVal) * 100}%` }}
-                              className="bg-teal-600 h-full rounded-full transition-all duration-700 ease-out"
+                              className="bg-teal-600 h-full rounded-full transition-all duration-700 ease-out animate-bar-grow"
                             />
                           </div>
                           <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden flex">
                             <div
                               style={{ width: `${(ref / maxVal) * 100}%` }}
-                              className="bg-slate-300 h-full rounded-full transition-all duration-700 ease-out"
+                              className="bg-slate-300 h-full rounded-full transition-all duration-700 ease-out animate-bar-grow"
                             />
                           </div>
                         </div>
