@@ -708,6 +708,9 @@ def jalon3_results():
 from backend.jalon3_testing import router as jalon3_testing_router
 app.include_router(jalon3_testing_router)
 
+from backend.thermography import router as thermo_router
+app.include_router(thermo_router)
+
 
 # 6. Page 6 : Séries Temporelles (Encodeur-Décodeur GRU - Jalon 4)
 @app.post("/api/predict/gru", response_model=GruPredictResponse)

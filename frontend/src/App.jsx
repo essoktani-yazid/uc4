@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import Jalon3Results from './Jalon3Results';
+import ThermographyWorkbench from './ThermographyWorkbench';
 
 const API_BASE = '/api';
 
@@ -751,8 +752,9 @@ export default function App() {
               { id: 'sky', label: '2. Vision du Ciel', faIcon: 'fa-cloud-sun', badge: 'CNN Ciel' },
               { id: 'enriched', label: '3. Prévision Enrichie', faIcon: 'fa-layer-group', badge: 'MLP 51v' },
               { id: 'motion', label: '4. Dynamique Nuages', faIcon: 'fa-wind', badge: 'CNN t+1' },
-              { id: 'transfer', label: '5. Transfert de Site', faIcon: 'fa-compass', badge: 'Site A/B' },
-              { id: 'gru', label: '6. Séries GRU', faIcon: 'fa-clock-rotate-left', badge: 'Seq2Seq' },
+              { id: 'thermo', label: '5. Diagnostic Thermique', faIcon: 'fa-temperature-half', badge: 'Goulot 16' },
+              { id: 'transfer', label: '6. Transfert de Site', faIcon: 'fa-compass', badge: 'Site A/B' },
+              { id: 'gru', label: '7. Séries GRU', faIcon: 'fa-clock-rotate-left', badge: 'Seq2Seq' },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -1100,8 +1102,9 @@ export default function App() {
                     { id: 'sky', title: '2. Vision Ciel', desc: 'CNN Couverture & Occ.' },
                     { id: 'enriched', title: '3. MLP Enrichi (51v)', desc: 'Fusion Multimodale' },
                     { id: 'motion', title: '4. Mouvement Nuages', desc: 'Anticipation t+1' },
-                    { id: 'transfer', title: '5. Transfert Site', desc: 'Zero-shot vs Tuned' },
-                    { id: 'gru', title: '6. Séries GRU', desc: 'Seq2Seq 48 heures' },
+                    { id: 'thermo', title: '5. Diagnostic Thermique', desc: 'Autoencodeur Goulot 16' },
+                    { id: 'transfer', title: '6. Transfert Site', desc: 'Zero-shot vs Tuned' },
+                    { id: 'gru', title: '7. Séries GRU', desc: 'Seq2Seq 48 heures' },
                   ].map((m) => (
                     <button
                       key={m.id}
@@ -3448,10 +3451,13 @@ export default function App() {
           </div>
         )}
 
-        {/* MODULE 5: Transfert de Site (Jalon 3) */}
+        {/* MODULE 5: Diagnostic Thermique & Auto-Encodeur (Jalon 2) */}
+        {activeTab === 'thermo' && <ThermographyWorkbench />}
+
+        {/* MODULE 6: Transfert de Site (Jalon 3) */}
         {activeTab === 'transfer' && <Jalon3Results />}
 
-        {/* MODULE 6: Séries Temporelles (Encodeur-Décodeur GRU - Jalon 4) */}
+        {/* MODULE 7: Séries Temporelles (Encodeur-Décodeur GRU - Jalon 4) */}
         {activeTab === 'gru' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
             {/* Left Controls (5 cols) */}
