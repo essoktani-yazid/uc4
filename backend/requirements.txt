@@ -10,3 +10,8 @@ keras>=3.0.0
 joblib>=1.3.0
 pandas>=2.2.0
 
+
+# Prétraitement partagé avec le notebook final Jalon 3
+matplotlib>=3.8
+ipython>=8.0
+

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Jalon3Testing from './Jalon3Testing';
 
 const number = (value, digits = 4) => Number(value).toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const percent = value => `${number(Number(value) * 100, 2)} %`;
@@ -26,6 +27,7 @@ export default function Jalon3Results() {
   if (!data) return <p role="status">Chargement des résultats du jalon 3…</p>;
   return <div className="space-y-5">
     <div className="bg-white border rounded-xl p-5"><h2 className="text-xl font-bold">Jalon 3 — Transfert de site et CNN multitâche</h2><p className="mt-2 text-sm text-slate-600">Évaluation archivée du notebook final · Site A : {data.capacitiesMW.A} MW · Site B : {data.capacitiesMW.B} MW. Aucun entraînement en direct.</p><p className="mt-3 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3">Résultats exploratoires : le test a déjà été consulté. Une nouvelle période indépendante est nécessaire pour confirmer la généralisation. Le brouillard ne dispose pas d'annotations vérifiées.</p></div>
+    <Jalon3Testing />
     <Section title="Production : cinq stratégies comparées sur la validation B" source="cellule 8 · validation B, mars 2025">
       <Table headings={['Stratégie', 'Paramètres entraînables', 'Gain à 1 h', 'Gain à 6 h', 'Gain moyen', 'RMSE à 1 h (MW)']} rows={data.strategies.map(r => [names[r.model] || r.model, r.trainableParams, percent(r.gain1h), percent(r.gain6h), percent(r.gainMean), number(r.rmse1hMW, 3)])}/>
       <p className="text-sm mt-3">Choix sur validation : ajustement complet. Gain = 1 − RMSE modèle / RMSE persistance corrigée ; le gain moyen est la moyenne des six gains. Ce n'est pas un taux de prédictions correctes.</p>
