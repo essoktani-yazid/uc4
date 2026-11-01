@@ -69,6 +69,15 @@ export default function ThermographyWorkbench() {
   const animMeanTemp = useAnimatedNumber(result?.temperatures_celsius?.original_mean, 650, 1);
   const animDeltaTemp = useAnimatedNumber(result?.temperatures_celsius?.max_delta_temp, 650, 1);
 
+  // Debounce pour inférence temps réel ultra-fluide sur sliders
+  const debounceTimer = useRef(null);
+  const runRealtime = (idx, model, upload) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      executeInference(idx, model, upload);
+    }, 50);
+  };
+
   // Load sample metadata on mount
   useEffect(() => {
     let isMounted = true;
@@ -173,9 +182,22 @@ export default function ThermographyWorkbench() {
                 Contrôle qualité & détection de défauts (Jalon 2)
               </p>
             </div>
-            <span className="text-[10px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded font-semibold">
-              Goulot 16
-            </span>
+            <div className="flex items-center gap-1.5">
+              {loading ? (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
+                  <span className="w-2 h-2 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
+                  <span>Calcul...</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Temps Réel</span>
+                </span>
+              )}
+              <span className="text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-semibold">
+                {modelVariant === 'goulot_16' ? 'Goulot 16' : modelVariant === 'goulot_32' ? 'Goulot 32' : 'Sans Goulot'}
+              </span>
+            </div>
           </div>
 
           {/* 1. Sélection Rapide de Modèle */}
@@ -294,6 +316,7 @@ export default function ThermographyWorkbench() {
                         onChange={(e) => {
                           const val = Math.max(0, Math.min(Number(e.target.value), 1499));
                           setSampleIndex(val);
+                          runRealtime(val, modelVariant, null);
                         }}
                         className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded"
                       />
@@ -312,9 +335,11 @@ export default function ThermographyWorkbench() {
                     min={0}
                     max={samplesMeta ? samplesMeta.total - 1 : 1499}
                     value={sampleIndex}
-                    onChange={(e) => setSampleIndex(Number(e.target.value))}
-                    onMouseUp={() => executeInference(sampleIndex, modelVariant, null)}
-                    onTouchEnd={() => executeInference(sampleIndex, modelVariant, null)}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setSampleIndex(val);
+                      runRealtime(val, modelVariant, null);
+                    }}
                     className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
@@ -387,23 +412,6 @@ export default function ThermographyWorkbench() {
               <span>2.00 (Tolérant)</span>
             </div>
           </div>
-
-          {/* Bouton d'action */}
-          <button
-            type="button"
-            onClick={() => executeInference(sampleIndex, modelVariant, customUpload)}
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-semibold text-xs rounded-lg shadow-sm transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                <span>Calcul Auto-Encodeur en cours...</span>
-              </span>
-            ) : (
-              <span>Exécuter le Test de Détection</span>
-            )}
-          </button>
 
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs">
