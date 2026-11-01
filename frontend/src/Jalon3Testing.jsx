@@ -12,7 +12,13 @@ export default function Jalon3Testing() {
   const [busy, setBusy] = useState(false);
   async function request(path, body) {
     const response = await fetch(`/api/jalon3/${path}`, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const result = await response.json();
+    const text = await response.text();
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch {
+      throw new Error(`Réponse inattendue du serveur (${response.status}). Veuillez redémarrer le backend.`);
+    }
     if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Requête invalide ou modèles indisponibles.');
     return result;
   }

@@ -25,7 +25,7 @@ cd "$PROJECT_ROOT" || exit 1
 # 1. Démarrage du Backend FastAPI
 echo "▶ 1/3 Démarrage du Backend FastAPI..."
 source /home/yazid/venv/bin/activate
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 > /dev/null 2>&1 &
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload > /dev/null 2>&1 &
 BACKEND_PID=$!
 echo "✓ Backend actif (PID: $BACKEND_PID)"
 

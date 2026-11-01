@@ -18,8 +18,15 @@ export default function Jalon3Results() {
     const controller = new AbortController();
     setError('');
     fetch('/api/jalon3/results', { signal: controller.signal }).then(async response => {
-      if (!response.ok) throw new Error('Impossible de charger les résultats du notebook. Vérifiez le backend et les fichiers results.');
-      return response.json();
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(`Réponse inattendue du serveur (${response.status}). Veuillez redémarrer le backend avec ./start.sh`);
+      }
+      if (!response.ok) throw new Error(result.detail || 'Impossible de charger les résultats du notebook.');
+      return result;
     }).then(setData).catch(err => { if (err.name !== 'AbortError') setError(err.message); });
     return () => controller.abort();
   }, [attempt]);
