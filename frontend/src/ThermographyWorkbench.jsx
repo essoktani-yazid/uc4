@@ -398,7 +398,7 @@ export default function ThermographyWorkbench() {
           {/* Explication succincte du principe */}
           <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-500 leading-relaxed">
             <span className="font-semibold text-slate-700 block mb-0.5">Principe de Détection (Jalon 2) :</span>
-            L'auto-encodeur convolutif est entraîné exclusivement sur les modules sains. Le goulot d'étranglement (16 neurones) empêche la réplication des anomalies. Tout point chaud ou cellule fissurée génère une forte erreur résiduelle $|X - \hat{X}|$.
+            L'auto-encodeur convolutif est entraîné exclusivement sur les modules sains. Le goulot d'étranglement (16 neurones) empêche la réplication des anomalies. Tout point chaud ou cellule fissurée génère une forte erreur résiduelle |X - X̂|.
           </div>
         </div>
       </div>
@@ -627,3 +627,4 @@ export default function ThermographyWorkbench() {
     </div>
   );
 }
+
