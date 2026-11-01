@@ -705,6 +705,10 @@ def jalon3_results():
         raise HTTPException(status_code=503, detail="Résultats Jalon 3 indisponibles ou invalides.") from exc
 
 
+from backend.jalon3_testing import router as jalon3_testing_router
+app.include_router(jalon3_testing_router)
+
+
 # 6. Page 6 : Séries Temporelles (Encodeur-Décodeur GRU - Jalon 4)
 @app.post("/api/predict/gru", response_model=GruPredictResponse)
 def predict_gru(req: GruPredictRequest):
