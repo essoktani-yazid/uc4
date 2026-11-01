@@ -167,7 +167,7 @@ export default function ThermographyWorkbench() {
   const isAnomaly = scoreMaxActuel >= customThreshold;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-tab-enter transition-all duration-300">
       {/* ========================================================================= */}
       {/* COLONNE GAUCHE: CONTRÔLES & SÉLECTION D'ÉCHANTILLON (5 cols)               */}
       {/* ========================================================================= */}

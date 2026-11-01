@@ -160,33 +160,7 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
       : '0.0';
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* En-tête Compact & Structuré */}
-      <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 font-bold text-xs">
-            <i className="fa-solid fa-clock-rotate-left"></i>
-          </div>
-          <h2 className="font-semibold text-slate-900 text-sm">
-            Banc d'Essai Séries Temporelles Récurrentes (Jalon 4)
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {loading && (
-            <span className="flex items-center gap-1.5 text-[11px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
-              <span>Calcul...</span>
-            </span>
-          )}
-          <span className="text-[11px] font-mono bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-semibold">
-            Site A (50 MWc)
-          </span>
-          <span className="text-[11px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded font-semibold">
-            {modelType.toUpperCase()} {generationStrategy === 'seq2seq' ? 'Seq2Seq' : 'Direct'} · L={historyHours}h
-          </span>
-        </div>
-      </div>
+    <div className="space-y-4 animate-tab-enter">
 
       {error && (
         <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">

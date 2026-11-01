@@ -726,13 +726,13 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out active:scale-95 ${
                     isActive
-                      ? 'bg-white text-teal-700 border border-slate-200/90 shadow-sm font-semibold'
+                      ? 'bg-white text-teal-700 border border-slate-200/90 shadow-sm font-semibold scale-[1.01]'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 border border-transparent'
                   }`}
                 >
-                  <i className={`fa-solid ${tab.faIcon} text-xs ${isActive ? 'text-teal-600' : 'text-slate-400'}`} />
+                  <i className={`fa-solid ${tab.faIcon} text-xs transition-transform duration-300 ${isActive ? 'text-teal-600 scale-110' : 'text-slate-400'}`} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -756,8 +756,9 @@ export default function App() {
         )}
       </div>
 
-      {/* 3. Main Full-Width Content Container */}
+      {/* 3. Main Full-Width Content Container with Smooth Tab Entrance Animation */}
       <main className="w-full px-4 sm:px-8 py-4 flex-1 flex flex-col gap-5">
+        <div key={activeTab} className="animate-tab-enter flex-1 flex flex-col gap-5">
         {/* VUE D'ENSEMBLE : TABLEAU DE BORD (DASHBOARD) */}
         {activeTab === 'dashboard' && (
           <div className="flex flex-col gap-5 animate-fade-in">
@@ -3424,6 +3425,7 @@ export default function App() {
 
         {/* MODULE 7: Séries Temporelles Récurrentes (RNN, LSTM, GRU - Jalon 4) */}
         {activeTab === 'gru' && <GruSeriesWorkbench capaciteNominale={capaciteNominale} />}
+        </div>
       </main>
 
       {/* 5. Modale Popup avec Frosted Glass (Configuration Rapide) */}

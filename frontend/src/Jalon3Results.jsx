@@ -290,7 +290,7 @@ export default function Jalon3Results() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveSubTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out active:scale-95 ${
                   isActive
                     ? 'bg-teal-600 text-white shadow-sm font-semibold scale-[1.01]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -334,7 +334,7 @@ export default function Jalon3Results() {
       {/* SOUS-ONGLET 1: TEST DE PRODUCTION (TRANSFERT DE SITE B)                   */}
       {/* ========================================================================= */}
       {activeSubTab === 'prod' && (
-        <div key="tab-prod" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
+        <div key="tab-prod" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-tab-enter transition-all duration-300">
           {/* Colonne Gauche : Contrôles & Échantillons (5 cols) */}
           <div className="xl:col-span-5 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
@@ -755,7 +755,7 @@ export default function Jalon3Results() {
       {/* SOUS-ONGLET 2: STRATÉGIES DE TRANSFERT & BENCHMARK INTERACTIF             */}
       {/* ========================================================================= */}
       {activeSubTab === 'benchmark' && (
-        <div key="tab-bench" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
+        <div key="tab-bench" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-tab-enter transition-all duration-300">
           {/* Colonne Gauche : Sélecteur Interactif des Stratégies (5 cols) */}
           <div className="xl:col-span-5 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
