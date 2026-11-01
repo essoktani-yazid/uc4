@@ -133,7 +133,7 @@ const STRATEGY_DETAILS = {
 };
 
 export default function Jalon3Results() {
-  // Navigation: 'prod' (Test Production B) | 'vision' (Test Vision Ciel) | 'benchmark' (Synthèse Stratégies)
+  // Navigation: 'prod' (Test Production B) | 'benchmark' (Synthèse Stratégies)
   const [activeSubTab, setActiveSubTab] = useState('prod');
 
   // Metadata & Notebook summary
@@ -147,16 +147,7 @@ export default function Jalon3Results() {
   const [prodLoading, setProdLoading] = useState(false);
   const [prodError, setProdError] = useState('');
 
-  // 2. Sky Vision Test State (CNN Multi-tâches)
-  const [skySite, setSkySite] = useState('B');
-  const [skyIndex, setSkyIndex] = useState(50);
-  const [skyMode, setSkyMode] = useState('sample'); // 'sample' | 'upload'
-  const [skyUpload, setSkyUpload] = useState(null);
-  const [skyResult, setSkyResult] = useState(null);
-  const [skyLoading, setSkyLoading] = useState(false);
-  const [skyError, setSkyError] = useState('');
-
-  // 3. Benchmark selected strategy
+  // 2. Benchmark selected strategy
   const [selectedStrategy, setSelectedStrategy] = useState('ajustement_complet');
 
   const capNominaleB = 20.0; // 20 MW sur Site B
@@ -183,12 +174,6 @@ export default function Jalon3Results() {
       ? ((prodResult.maeZeroShotMW - prodResult.maeFineTunedMW) / (prodResult.maeZeroShotMW || 1)) * 100
       : 26.6;
   const animGain = useAnimatedNumber(transferGain, 650, 1);
-
-  // === ANIMATIONS FLUIDES POUR LA VISION CIEL ===
-  const animOccultation = useAnimatedNumber(skyResult?.prediction?.occultation, 650, 4);
-  const animCoverage = useAnimatedNumber(skyResult?.prediction?.coverage, 650, 4);
-  const animErrOcc = useAnimatedNumber(skyResult?.absoluteError?.occultation, 650, 4);
-  const animErrCov = useAnimatedNumber(skyResult?.absoluteError?.coverage, 650, 4);
 
   // Load sample counts & results data on mount
   useEffect(() => {
@@ -234,9 +219,6 @@ export default function Jalon3Results() {
     // Initial production inference (sample 250 = sunny midday peak)
     executeProductionTest(250);
 
-    // Initial sky inference (sample 50 = clear sky B)
-    executeSkyTest(50, 'B', null);
-
     return () => {
       isMounted = false;
     };
@@ -248,14 +230,6 @@ export default function Jalon3Results() {
     if (prodDebounce.current) clearTimeout(prodDebounce.current);
     prodDebounce.current = setTimeout(() => {
       executeProductionTest(idx);
-    }, 50);
-  };
-
-  const skyDebounce = useRef(null);
-  const runRealtimeSky = (idx, site, upload) => {
-    if (skyDebounce.current) clearTimeout(skyDebounce.current);
-    skyDebounce.current = setTimeout(() => {
-      executeSkyTest(idx, site, upload);
     }, 50);
   };
 
@@ -285,67 +259,12 @@ export default function Jalon3Results() {
     }
   };
 
-  // Helper to run sky inference
-  const executeSkyTest = async (idx, site, uploadBase64) => {
-    setSkyLoading(true);
-    setSkyError('');
-    try {
-      const payload = uploadBase64
-        ? { index: 0, site, image_base64: uploadBase64 }
-        : { index: Number(idx), site };
-      const res = await fetch('/api/jalon3/sky', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error('Réponse invalide du serveur.');
-      }
-      if (!res.ok) throw new Error(data.detail || 'Erreur lors de l’analyse d’image.');
-      setSkyResult(data);
-    } catch (err) {
-      setSkyError(err.message);
-    } finally {
-      setSkyLoading(false);
-    }
-  };
-
-  // Handle image upload
-  const handleFileUpload = (e) => {
-    setSkyError('');
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5_000_000) {
-      setSkyError('Image trop volumineuse : maximum 5 Mo.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSkyUpload(reader.result);
-      executeSkyTest(0, skySite, reader.result);
-    };
-    reader.onerror = () => setSkyError('Échec de lecture du fichier.');
-    reader.readAsDataURL(file);
-  };
-
   // Random sample pickers
   const pickRandomProdSample = () => {
     const max = sampleCounts?.production || 2178;
     const randomIdx = Math.floor(Math.random() * max);
     setProdIndex(randomIdx);
     executeProductionTest(randomIdx);
-  };
-
-  const pickRandomSkySample = () => {
-    const max = (sampleCounts?.sky && sampleCounts.sky[skySite]) || 1000;
-    const randomIdx = Math.floor(Math.random() * max);
-    setSkyIndex(randomIdx);
-    setSkyUpload(null);
-    executeSkyTest(randomIdx, skySite, null);
   };
 
   return (
@@ -360,13 +279,8 @@ export default function Jalon3Results() {
               badge: '20 MW · MLP',
             },
             {
-              id: 'vision',
-              label: '2. Test Vision Multi-Tâches',
-              badge: 'CNN Partagé',
-            },
-            {
               id: 'benchmark',
-              label: '3. Stratégies de Transfert',
+              label: '2. Stratégies de Transfert',
               badge: 'Validation B',
             },
           ].map((tab) => {
@@ -838,386 +752,7 @@ export default function Jalon3Results() {
       )}
 
       {/* ========================================================================= */}
-      {/* SOUS-ONGLET 2: TEST VISION MULTI-TÂCHES (CNN CIEL & OCCULTATION)         */}
-      {/* ========================================================================= */}
-      {activeSubTab === 'vision' && (
-        <div key="tab-vision" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
-          {/* Colonne Gauche : Paramètres & Sélection d'Image (5 cols) */}
-          <div className="xl:col-span-5 flex flex-col gap-4">
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">
-                    Banc d'Essai Vision Multi-Tâches
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Estimation conjointe : Occultation du soleil et Couverture nuageuse
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {skyLoading && (
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
-                      <span className="w-2 h-2 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
-                      <span>Calcul...</span>
-                    </span>
-                  )}
-                  <span className="text-[10px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded font-semibold">
-                    CNN Partagé
-                  </span>
-                </div>
-              </div>
-
-              {/* Sélecteur de Site */}
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                  Modèle et Site d'Observation :
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSkySite('B');
-                      executeSkyTest(skyIndex, 'B', skyUpload);
-                    }}
-                    className={`p-2.5 rounded-lg border text-xs text-left transition-all duration-300 ease-out ${
-                      skySite === 'B'
-                        ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
-                    }`}
-                  >
-                    <div>Site B — Tarfaya</div>
-                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">
-                      Modèle adapté (λ=0,3)
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSkySite('A');
-                      executeSkyTest(skyIndex, 'A', skyUpload);
-                    }}
-                    className={`p-2.5 rounded-lg border text-xs text-left transition-all duration-300 ease-out ${
-                      skySite === 'A'
-                        ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
-                    }`}
-                  >
-                    <div>Site A — Ouarzazate</div>
-                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">
-                      Modèle source (λ=0)
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Source de l'image : Exemples réels vs Upload */}
-              <div className="pt-2 border-t border-slate-100">
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg mb-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSkyMode('sample');
-                      setSkyUpload(null);
-                      executeSkyTest(skyIndex, skySite, null);
-                    }}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
-                      skyMode === 'sample'
-                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Échantillons du Test
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSkyMode('upload')}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
-                      skyMode === 'upload'
-                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Importer une Image
-                  </button>
-                </div>
-
-                {skyMode === 'sample' ? (
-                  <div className="space-y-3">
-                    {/* Presets rapides de ciel */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { label: 'Ciel Dégagé (0%)', idx: 50, desc: 'Sans nuage' },
-                        { label: 'Voile Léger (9%)', idx: 300, desc: 'Cirrus partiels' },
-                        { label: 'Nuages Épars (34%)', idx: 150, desc: 'Occultation 10%' },
-                        { label: 'Couvert (71%)', idx: 500, desc: 'Soleil occulté' },
-                      ].map((preset) => {
-                        const isSelected = skyIndex === preset.idx && !skyUpload;
-                        return (
-                          <button
-                            key={preset.idx}
-                            type="button"
-                            onClick={() => {
-                              setSkyIndex(preset.idx);
-                              setSkyUpload(null);
-                              executeSkyTest(preset.idx, skySite, null);
-                            }}
-                            className={`p-2 rounded-lg border text-left text-xs transition-all duration-300 ease-out ${
-                              isSelected
-                                ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
-                            }`}
-                          >
-                            <div>{preset.label}</div>
-                            <div className="text-[10px] text-slate-500 font-normal mt-0.5">{preset.desc}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Curseur d'index */}
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between text-xs mb-1.5">
-                        <span className="text-slate-600 font-medium">Index de test ({skySite}) :</span>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={0}
-                            max={sampleCounts?.sky?.[skySite] ? sampleCounts.sky[skySite] - 1 : 1000}
-                            value={skyIndex}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setSkyIndex(val);
-                              runRealtimeSky(val, skySite, null);
-                            }}
-                            className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded transition-colors"
-                          />
-                          <button
-                            type="button"
-                            onClick={pickRandomSkySample}
-                            className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 text-slate-600 transition-colors"
-                          >
-                            Aléatoire
-                          </button>
-                        </div>
-                      </div>
-
-                      <input
-                        type="range"
-                        min={0}
-                        max={sampleCounts?.sky?.[skySite] ? sampleCounts.sky[skySite] - 1 : 1000}
-                        value={skyIndex}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setSkyIndex(val);
-                          runRealtimeSky(val, skySite, null);
-                        }}
-                        className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none transition-all"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <label className="border-2 border-dashed border-slate-300 hover:border-teal-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition-colors duration-200">
-                      <span className="text-xs font-semibold text-slate-700">
-                        Glissez une image ou cliquez pour parcourir
-                      </span>
-                      <span className="text-[10px] text-slate-400 mt-1">PNG ou JPEG (Max 5 Mo)</span>
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-
-                    {skyUpload && (
-                      <div className="flex items-center justify-between p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs animate-fade-in">
-                        <span className="text-teal-800 font-medium">Image personnalisée prête</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSkyUpload(null);
-                            setSkyMode('sample');
-                            executeSkyTest(skyIndex, skySite, null);
-                          }}
-                          className="text-teal-700 underline text-xs"
-                        >
-                          Effacer
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {skyError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs animate-fade-in">
-                  {skyError}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Colonne Droite : Visualisation Sticky & Diagnostic (7 cols) */}
-          <div className="xl:col-span-7 flex flex-col gap-4 xl:sticky xl:top-[60px] self-start z-10">
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4 min-h-[460px]">
-              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-                <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">
-                    Résultats de l'Inférence CNN Multi-Tâches
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Image vue par le réseau de neurones et jauges d'impact
-                  </p>
-                </div>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                  Site {skySite}
-                </span>
-              </div>
-
-              {skyResult ? (
-                <div className="space-y-4">
-                  {/* Visualisation Bento : Image à gauche + Jauges à droite */}
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                    {/* Image prétraitée avec transition fluide */}
-                    <div className="sm:col-span-5 flex flex-col items-center">
-                      <div className="relative w-44 h-44 rounded-xl border-2 border-slate-200 overflow-hidden shadow-xs bg-black flex items-center justify-center transition-all duration-500">
-                        {skyResult.image ? (
-                          <img
-                            src={skyResult.image}
-                            alt="Image ciel analysée"
-                            className="w-full h-full object-cover transition-opacity duration-500"
-                          />
-                        ) : (
-                          <span className="text-slate-400 text-xs">Aperçu image</span>
-                        )}
-                        <span className="absolute bottom-1 right-1 bg-black/75 text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
-                          Luma CNN
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 mt-1 font-mono">
-                        Échantillon #{skyIndex} ({skySite})
-                      </span>
-                    </div>
-
-                    {/* Jauges Métriques Animées */}
-                    <div className="sm:col-span-7 space-y-3">
-                      {/* 1. Occultation du Disque Solaire */}
-                      <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 space-y-1.5 transition-all duration-500">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-800">
-                            Occultation du Disque Solaire
-                          </span>
-                          <span className="font-mono font-bold text-amber-700 text-sm">
-                            {pct(animOccultation)}
-                          </span>
-                        </div>
-
-                        {/* Barre de progression fluide */}
-                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            style={{
-                              width: `${Math.min(100, Math.max(0, animOccultation * 100))}%`,
-                            }}
-                            className={`h-full rounded-full transition-all duration-700 ease-out ${
-                              animOccultation > 0.5 ? 'bg-amber-500' : 'bg-emerald-500'
-                            }`}
-                          />
-                        </div>
-
-                        <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                          <span>
-                            Vérité :{' '}
-                            {skyResult.truth?.occultation != null
-                              ? pct(skyResult.truth.occultation)
-                              : 'Non supervisée'}
-                          </span>
-                          <span>
-                            Erreur :{' '}
-                            {skyResult.absoluteError?.occultation != null
-                              ? pct(animErrOcc)
-                              : '—'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 2. Couverture Nuageuse Globale */}
-                      <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 space-y-1.5 transition-all duration-500">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-800">
-                            Couverture Nuageuse Globale
-                          </span>
-                          <span className="font-mono font-bold text-teal-700 text-sm">
-                            {skyResult.prediction?.coverage != null
-                              ? pct(animCoverage)
-                              : 'Non supervisée (λ=0)'}
-                          </span>
-                        </div>
-
-                        {/* Barre de progression fluide */}
-                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            style={{
-                              width: `${Math.min(100, Math.max(0, animCoverage * 100))}%`,
-                            }}
-                            className="h-full bg-teal-600 rounded-full transition-all duration-700 ease-out"
-                          />
-                        </div>
-
-                        <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                          <span>
-                            Vérité :{' '}
-                            {skyResult.truth?.coverage != null
-                              ? pct(skyResult.truth.coverage)
-                              : '—'}
-                          </span>
-                          <span>
-                            Erreur :{' '}
-                            {skyResult.absoluteError?.coverage != null
-                              ? pct(animErrCov)
-                              : '—'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Diagnostic Opérationnel & Impact PV */}
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5 transition-all duration-300">
-                    <div className="font-semibold text-slate-800 flex items-center justify-between">
-                      <span>Diagnostic Opérationnel Photovoltaïque :</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
-                        {skyResult.note || 'Inférence CNN'}
-                      </span>
-                    </div>
-                    <p className="text-slate-600 text-[11px] leading-relaxed">
-                      {animOccultation > 0.5
-                        ? 'Soleil masqué par une masse nuageuse dense : chute sévère de l’irradiance directe (DNI) entraînant une bascule en régime diffus.'
-                        : animCoverage > 0.3
-                        ? 'Ciel partiellement voilé mais disque solaire dégagé : l’irradiance directe reste exploitable avec atténuation modérée.'
-                        : 'Conditions de ciel clair optimales : captation solaire maximale sans perte d’occultation.'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-16 flex flex-col items-center justify-center text-center">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3 animate-pulse">
-                    CNN
-                  </div>
-                  <p className="text-xs font-medium text-slate-700">Aucune analyse d'image active</p>
-                  <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
-                    Choisissez une image ou un exemple de ciel ci-contre pour exécuter l'inférence.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SOUS-ONGLET 3: STRATÉGIES DE TRANSFERT & BENCHMARK INTERACTIF             */}
+      {/* SOUS-ONGLET 2: STRATÉGIES DE TRANSFERT & BENCHMARK INTERACTIF             */}
       {/* ========================================================================= */}
       {activeSubTab === 'benchmark' && (
         <div key="tab-bench" className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
