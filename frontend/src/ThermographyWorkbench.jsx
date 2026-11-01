@@ -54,6 +54,9 @@ export default function ThermographyWorkbench() {
   const [sampleIndex, setSampleIndex] = useState(1); // 1 = Cellule Fissurée (Hotspot)
   const [customUpload, setCustomUpload] = useState(null);
 
+  // Seuil interactif ajustable par l'utilisateur pour tester la sensibilité
+  const [customThreshold, setCustomThreshold] = useState(0.4881);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
@@ -113,6 +116,11 @@ export default function ThermographyWorkbench() {
 
       if (!res.ok) throw new Error(data.detail || 'Erreur lors de l’inférence thermographique.');
       setResult(data);
+
+      // Met à jour le seuil par défaut du modèle choisi
+      if (data.metrics?.seuil_max_5fa) {
+        setCustomThreshold(data.metrics.seuil_max_5fa);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -145,8 +153,9 @@ export default function ThermographyWorkbench() {
     executeInference(rnd, modelVariant, null);
   };
 
-  const isAnomaly = result?.metrics?.is_anomaly;
-  const seuilMax = result?.metrics?.seuil_max_5fa || 0.4881;
+  // Décision basée sur le seuil actif (par défaut ou ajusté au slider)
+  const scoreMaxActuel = result?.metrics?.score_max || 0;
+  const isAnomaly = scoreMaxActuel >= customThreshold;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start animate-fade-in transition-all duration-300">
@@ -161,7 +170,7 @@ export default function ThermographyWorkbench() {
                 Banc d'Essai Auto-Encodeur Thermique
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Détection d'anomalies sur panneaux solaires par reconstruction (Jalon 2)
+                Contrôle qualité & détection de défauts (Jalon 2)
               </p>
             </div>
             <span className="text-[10px] font-mono bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded font-semibold">
@@ -169,34 +178,16 @@ export default function ThermographyWorkbench() {
             </span>
           </div>
 
-          {/* 1. Sélection de la Variante d'Auto-Encodeur */}
+          {/* 1. Sélection Rapide de Modèle */}
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-              Modèle d'Auto-Encodeur Convolutif :
+              Variante Auto-Encodeur :
             </label>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {[
-                {
-                  id: 'goulot_16',
-                  label: 'Auto-Encodeur Goulot 16 (16 variables latentes)',
-                  badge: 'Recommandé',
-                  badgeColor: 'bg-teal-50 text-teal-700 border-teal-200',
-                  desc: 'Compression maximale : 16 dimensions au goulot. Excellente séparation des anomalies ponctuelles (hotspots, micro-fissures).',
-                },
-                {
-                  id: 'goulot_32',
-                  label: 'Auto-Encodeur Goulot 32 (32 variables latentes)',
-                  badge: 'Jalon 2',
-                  badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
-                  desc: 'Compromis 32 dimensions : reconstruit plus fidèlement les motifs thermiques complexes.',
-                },
-                {
-                  id: 'sans_goulot',
-                  label: 'Auto-Encodeur Sans Goulot',
-                  badge: 'Baseline',
-                  badgeColor: 'bg-slate-100 text-slate-600 border-slate-200',
-                  desc: 'Pas de goulot d’étranglement sévère. Risque de sur-apprentissage et mémorisation des défauts.',
-                },
+                { id: 'goulot_16', label: 'Goulot 16', sub: 'Retenu (16 lat.)' },
+                { id: 'goulot_32', label: 'Goulot 32', sub: '32 latents' },
+                { id: 'sans_goulot', label: 'Sans Goulot', sub: 'Baseline' },
               ].map((m) => {
                 const isSelected = modelVariant === m.id;
                 return (
@@ -207,26 +198,21 @@ export default function ThermographyWorkbench() {
                       setModelVariant(m.id);
                       executeInference(sampleIndex, m.id, customUpload);
                     }}
-                    className={`w-full text-left p-2.5 rounded-xl border text-xs transition-all duration-300 ease-out ${
+                    className={`p-2 rounded-lg border text-center transition-all duration-200 ${
                       isSelected
-                        ? 'bg-teal-50/80 border-teal-400 text-teal-900 shadow-xs ring-1 ring-teal-300 scale-[1.005]'
-                        : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100 text-slate-700 hover:border-slate-300'
+                        ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300'
+                        : 'bg-slate-50/70 border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">{m.label}</span>
-                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${m.badgeColor}`}>
-                        {m.badge}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{m.desc}</p>
+                    <div className="text-xs font-bold">{m.label}</div>
+                    <div className="text-[10px] text-slate-500 font-mono mt-0.5">{m.sub}</div>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* 2. Source de l'Image Thermique : Échantillons Test vs Import */}
+          {/* 2. Source de Test : Échantillons vs Import */}
           <div className="pt-2 border-t border-slate-100">
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg mb-3">
               <button
@@ -242,7 +228,7 @@ export default function ThermographyWorkbench() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Échantillons du Test (1 500)
+                1 500 Échantillons Réels
               </button>
               <button
                 type="button"
@@ -253,23 +239,23 @@ export default function ThermographyWorkbench() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Importer une Image
+                Importer Image
               </button>
             </div>
 
             {sourceMode === 'sample' ? (
               <div className="space-y-3">
-                {/* Presets par type de défaut officiel */}
+                {/* 5 Presets de Cas Réels */}
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                    Scénarios et Types de Défauts :
+                    Cas de Test Types (Ensemble de Test) :
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { label: 'Module Sain', idx: 0, code: 0, color: 'text-emerald-700', desc: 'Normal · Homogène' },
-                      { label: 'Cellule Fissurée', idx: 1, code: 2, color: 'text-rose-700', desc: 'Hotspot ponctuel' },
-                      { label: 'Diode By-pass', idx: 19, code: 1, color: 'text-amber-700', desc: 'Défaut étendu' },
-                      { label: 'Salissure / Poussière', idx: 13, code: 3, color: 'text-amber-700', desc: 'Gradient diffus' },
+                      { label: 'Module Sain', idx: 0, tag: 'Sain #0', color: 'text-emerald-700 border-emerald-200 bg-emerald-50/40' },
+                      { label: 'Cellule Fissurée', idx: 1, tag: 'Hotspot #1', color: 'text-rose-700 border-rose-200 bg-rose-50/40' },
+                      { label: 'Diode By-pass', idx: 19, tag: 'Diode #19', color: 'text-amber-700 border-amber-200 bg-amber-50/40' },
+                      { label: 'Salissure / Poussière', idx: 13, tag: 'Salissure #13', color: 'text-amber-700 border-amber-200 bg-amber-50/40' },
                     ].map((preset) => {
                       const isSelected = sampleIndex === preset.idx && !customUpload;
                       return (
@@ -281,24 +267,24 @@ export default function ThermographyWorkbench() {
                             setCustomUpload(null);
                             executeInference(preset.idx, modelVariant, null);
                           }}
-                          className={`p-2 rounded-lg border text-left text-xs transition-all duration-300 ease-out ${
+                          className={`p-2 rounded-lg border text-left transition-all duration-200 ${
                             isSelected
-                              ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300 scale-[1.01]'
-                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                              ? 'bg-teal-50 border-teal-400 text-teal-900 font-semibold ring-1 ring-teal-300'
+                              : `${preset.color} hover:bg-slate-100`
                           }`}
                         >
-                          <div className={`font-semibold ${preset.color}`}>{preset.label}</div>
-                          <div className="text-[10px] text-slate-500 font-normal mt-0.5">{preset.desc}</div>
+                          <div className="text-xs font-bold">{preset.label}</div>
+                          <div className="text-[10px] font-mono text-slate-500 mt-0.5">{preset.tag}</div>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Sélecteur d'index & Slider */}
+                {/* Slider d'Index Précis */}
                 <div className="pt-2">
                   <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-slate-600 font-medium">Index de test (0 à 1 499) :</span>
+                    <span className="text-slate-600 font-medium">Index de test :</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -309,12 +295,12 @@ export default function ThermographyWorkbench() {
                           const val = Math.max(0, Math.min(Number(e.target.value), 1499));
                           setSampleIndex(val);
                         }}
-                        className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded transition-colors"
+                        className="w-20 px-2 py-1 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-300 rounded"
                       />
                       <button
                         type="button"
                         onClick={pickRandomSample}
-                        className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 text-slate-600 transition-colors"
+                        className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 text-slate-600 font-medium"
                       >
                         Aléatoire
                       </button>
@@ -329,7 +315,7 @@ export default function ThermographyWorkbench() {
                     onChange={(e) => setSampleIndex(Number(e.target.value))}
                     onMouseUp={() => executeInference(sampleIndex, modelVariant, null)}
                     onTouchEnd={() => executeInference(sampleIndex, modelVariant, null)}
-                    className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none transition-all"
+                    className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
                     <span>Index 0</span>
@@ -339,11 +325,11 @@ export default function ThermographyWorkbench() {
               </div>
             ) : (
               <div className="space-y-3">
-                <label className="border-2 border-dashed border-slate-300 hover:border-teal-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition-colors duration-200">
+                <label className="border-2 border-dashed border-slate-300 hover:border-teal-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 transition">
                   <span className="text-xs font-semibold text-slate-700">
-                    Glissez une image thermique ou cliquez pour parcourir
+                    Glissez une image thermique ou cliquez
                   </span>
-                  <span className="text-[10px] text-slate-400 mt-1">PNG ou JPEG (Max 5 Mo)</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">PNG / JPEG (Max 5 Mo)</span>
                   <input
                     type="file"
                     accept="image/png,image/jpeg"
@@ -353,7 +339,7 @@ export default function ThermographyWorkbench() {
                 </label>
 
                 {customUpload && (
-                  <div className="flex items-center justify-between p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs animate-fade-in">
+                  <div className="flex items-center justify-between p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs">
                     <span className="text-teal-800 font-medium">Image personnalisée chargée</span>
                     <button
                       type="button"
@@ -372,6 +358,36 @@ export default function ThermographyWorkbench() {
             )}
           </div>
 
+          {/* 3. Sensibilité / Seuil de Détection Réglable */}
+          <div className="pt-2 border-t border-slate-100 space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700">Seuil de Détection Alarme :</span>
+              <span className="font-mono font-bold text-teal-800">
+                {fmt(customThreshold, 4)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0.10}
+              max={2.00}
+              step={0.01}
+              value={customThreshold}
+              onChange={(e) => setCustomThreshold(Number(e.target.value))}
+              className="w-full accent-teal-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+              <span>0.10 (Sensible)</span>
+              <button
+                type="button"
+                onClick={() => setCustomThreshold(result?.metrics?.seuil_max_5fa || 0.4881)}
+                className="underline text-teal-600 hover:text-teal-800"
+              >
+                Réinitialiser Seuil 5% FA ({fmt(result?.metrics?.seuil_max_5fa || 0.4881, 4)})
+              </button>
+              <span>2.00 (Tolérant)</span>
+            </div>
+          </div>
+
           {/* Bouton d'action */}
           <button
             type="button"
@@ -382,54 +398,48 @@ export default function ThermographyWorkbench() {
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                <span>Inférence Auto-Encodeur en cours...</span>
+                <span>Calcul Auto-Encodeur en cours...</span>
               </span>
             ) : (
-              <span>Analyser l'Image Thermique ({modelVariant.replace('_', ' ').toUpperCase()})</span>
+              <span>Exécuter le Test de Détection</span>
             )}
           </button>
 
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs animate-fade-in">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs">
               {error}
             </div>
           )}
-
-          {/* Explication succincte du principe */}
-          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-500 leading-relaxed">
-            <span className="font-semibold text-slate-700 block mb-0.5">Principe de Détection (Jalon 2) :</span>
-            L'auto-encodeur convolutif est entraîné exclusivement sur les modules sains. Le goulot d'étranglement (16 neurones) empêche la réplication des anomalies. Tout point chaud ou cellule fissurée génère une forte erreur résiduelle |X - X̂|.
-          </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* COLONNE DROITE: VISUALISATION THERMIQUE & DÉTECTION (7 cols) - STICKY     */}
+      {/* COLONNE DROITE: VISUALISATION & BANC D'ESSAI 100% TEST (7 cols) - STICKY    */}
       {/* ========================================================================= */}
       <div className="xl:col-span-7 flex flex-col gap-4 xl:sticky xl:top-[60px] self-start z-10">
         <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4 min-h-[460px]">
-          {/* Header Visualisation avec Statut */}
+          {/* Header Visualisation avec Grand Verdict Pass/Fail */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-slate-100">
             <div>
               <h3 className="font-semibold text-slate-900 text-sm">
-                Visualisation Thermographique & Reconstruction
+                Banc d'Essai Thermographique (Test en Direct)
               </h3>
               <p className="text-[11px] text-slate-500">
-                Comparaison Image Infrarouge vs Reconstruite vs Carte d'Erreur
+                Échantillon #{result?.index ?? sampleIndex} · {modelVariant.replace('_', ' ').toUpperCase()}
               </p>
             </div>
 
             {result && (
-              <span
-                className={`inline-flex items-center gap-1.5 text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full border transition-all duration-500 ${
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-mono text-xs font-bold transition-all duration-300 ${
                   isAnomaly
-                    ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    ? 'bg-rose-50 text-rose-700 border-rose-300 ring-1 ring-rose-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-1 ring-emerald-200'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${isAnomaly ? 'bg-rose-600' : 'bg-emerald-600'}`}></span>
-                <span>{isAnomaly ? '🚨 Anomalie Détectée' : '✅ Module Sain'}</span>
-              </span>
+                <span className={`w-2.5 h-2.5 rounded-full ${isAnomaly ? 'bg-rose-600 animate-ping' : 'bg-emerald-600'}`}></span>
+                <span>{isAnomaly ? 'DÉFAUT DÉTECTÉ' : 'MODULE CONFORME'}</span>
+              </div>
             )}
           </div>
 
@@ -439,7 +449,7 @@ export default function ThermographyWorkbench() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div
                   className={`p-2.5 rounded-lg border text-center transition-all duration-500 ${
-                    isAnomaly ? 'bg-rose-50/70 border-rose-200' : 'bg-emerald-50/70 border-emerald-200'
+                    isAnomaly ? 'bg-rose-50/80 border-rose-200' : 'bg-emerald-50/80 border-emerald-200'
                   }`}
                 >
                   <span className="text-[10px] text-slate-600 block font-medium">Score Erreur Max</span>
@@ -451,7 +461,7 @@ export default function ThermographyWorkbench() {
                     {fmt(animScoreMax, 4)}
                   </span>
                   <span className="text-[9px] text-slate-500 block mt-0.5 font-mono">
-                    Seuil: {fmt(seuilMax, 4)}
+                    Seuil: {fmt(customThreshold, 4)}
                   </span>
                 </div>
 
@@ -461,7 +471,7 @@ export default function ThermographyWorkbench() {
                     {fmt(animScoreMean, 4)}
                   </span>
                   <span className="text-[9px] text-slate-400 block mt-0.5 font-mono">
-                    Seuil: {fmt(result.metrics?.seuil_mean_5fa, 4)}
+                    Réf: {fmt(result.metrics?.seuil_mean_5fa, 4)}
                   </span>
                 </div>
 
@@ -476,17 +486,17 @@ export default function ThermographyWorkbench() {
                 </div>
 
                 <div className="bg-teal-50/60 p-2.5 rounded-lg border border-teal-200/70 text-center transition-all duration-500">
-                  <span className="text-[10px] text-teal-700 block font-medium">Confiance Alarme</span>
+                  <span className="text-[10px] text-teal-700 block font-medium">Confiance Alerte</span>
                   <span className="font-mono text-sm font-bold text-teal-900">
                     {fmt(animConfidence, 1)} %
                   </span>
-                  <span className="text-[9px] text-teal-600 block mt-0.5">
-                    {result.metrics?.severity || 'Normale'}
+                  <span className="text-[9px] text-teal-600 block mt-0.5 font-mono">
+                    ΔT: +{fmt(animDeltaTemp, 1)} °C
                   </span>
                 </div>
               </div>
 
-              {/* Triptyque Thermographique Bento : Original vs Reconstruit vs Erreur */}
+              {/* Triptyque Thermographique Bento */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* 1. Image Originale */}
                 <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200 flex flex-col items-center">
@@ -502,7 +512,7 @@ export default function ThermographyWorkbench() {
                     />
                   </div>
                   <span className="text-[10px] text-slate-500 font-mono mt-1">
-                    Max: {fmt(result.temperatures_celsius?.original_max, 1)} °C
+                    Pic: {fmt(result.temperatures_celsius?.original_max, 1)} °C
                   </span>
                 </div>
 
@@ -520,7 +530,7 @@ export default function ThermographyWorkbench() {
                     />
                   </div>
                   <span className="text-[10px] text-slate-500 font-mono mt-1">
-                    Goulot: {result.model_name === 'goulot_16' ? '16 var.' : result.model_name === 'goulot_32' ? '32 var.' : 'Sans goulot'}
+                    {modelVariant.toUpperCase()}
                   </span>
                 </div>
 
@@ -533,7 +543,7 @@ export default function ThermographyWorkbench() {
                   <span className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between w-full px-1">
                     <span>3. Erreur |X - X̂|</span>
                     <span className={`text-[9px] font-mono font-bold ${isAnomaly ? 'text-rose-700' : 'text-slate-500'}`}>
-                      {isAnomaly ? 'Défaut localisé' : 'Résidu minime'}
+                      {isAnomaly ? 'Défaut localisé' : 'Conforme'}
                     </span>
                   </span>
                   <div className="w-full aspect-[40/24] rounded-lg overflow-hidden border border-slate-300 shadow-xs bg-black">
@@ -543,72 +553,120 @@ export default function ThermographyWorkbench() {
                       className="w-full h-full object-cover transition-opacity duration-500"
                     />
                   </div>
-                  <span className="text-[10px] text-slate-500 font-mono mt-1">
-                    Err Max: {fmt(result.metrics?.score_max, 3)}
+                  <span className="text-[10px] text-slate-500 font-mono mt-1 font-mono">
+                    Err: {fmt(result.metrics?.score_max, 3)}
                   </span>
                 </div>
               </div>
 
-              {/* Jauge Comparative : Score vs Seuil 5% Fausse Alerte */}
+              {/* Jauge Comparative : Score vs Seuil Actif */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between text-xs font-mono">
                   <span className="font-sans font-semibold text-slate-700">
-                    Seuil de Détection (Sensibilité 5% Fausses Alertes) :
+                    Positionnement par rapport au Seuil :
                   </span>
                   <span className={`font-bold ${isAnomaly ? 'text-rose-700' : 'text-emerald-700'}`}>
-                    {fmt(animScoreMax, 4)} / {fmt(seuilMax, 4)}
+                    Score: {fmt(animScoreMax, 4)} (Seuil: {fmt(customThreshold, 4)})
                   </span>
                 </div>
 
-                {/* Barre avec marqueur de seuil */}
                 <div className="relative w-full h-3 bg-slate-200 rounded-full overflow-hidden">
-                  {/* Valeur actuelle */}
                   <div
                     style={{
-                      width: `${Math.min(100, Math.max(5, (animScoreMax / (seuilMax * 2.5)) * 100))}%`,
+                      width: `${Math.min(100, Math.max(5, (animScoreMax / (customThreshold * 2.5)) * 100))}%`,
                     }}
                     className={`h-full rounded-full transition-all duration-700 ease-out ${
                       isAnomaly ? 'bg-rose-500' : 'bg-emerald-500'
                     }`}
                   />
-                  {/* Ligne repère seuil (à 40% de la largeur) */}
                   <div
                     style={{ left: '40%' }}
                     className="absolute top-0 bottom-0 w-0.5 bg-slate-800 z-10"
-                    title={`Seuil d'alerte : ${fmt(seuilMax, 4)}`}
+                    title={`Seuil actif : ${fmt(customThreshold, 4)}`}
                   />
                 </div>
 
                 <div className="flex justify-between text-[10px] text-slate-400 font-mono">
                   <span>0.0 (Sain)</span>
-                  <span className="font-bold text-slate-700">▲ Seuil alerte ({fmt(seuilMax, 3)})</span>
-                  <span>{fmt(seuilMax * 2.5, 2)} (Critique)</span>
+                  <span className="font-bold text-slate-700">▲ Seuil ({fmt(customThreshold, 3)})</span>
+                  <span>{fmt(customThreshold * 2.5, 2)} (Défaut Critique)</span>
                 </div>
               </div>
 
-              {/* Diagnostic Opérationnel & Vérité Terrain */}
-              <div
-                className={`p-3.5 rounded-xl border text-xs space-y-1.5 transition-all duration-300 ${
-                  isAnomaly
-                    ? 'bg-rose-50/70 border-rose-200 text-rose-900'
-                    : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                }`}
-              >
-                <div className="font-semibold flex items-center justify-between">
-                  <span>Diagnostic Opérationnel Panneau :</span>
-                  {result.ground_truth?.label && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/80 border border-slate-200 text-slate-700">
-                      Vérité : {result.ground_truth.label}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] leading-relaxed">{result.diagnostic}</p>
-                {result.temperatures_celsius?.max_delta_temp != null && (
-                  <div className="text-[10px] font-mono pt-1 border-t border-slate-200/50 flex justify-between text-slate-600">
-                    <span>Écart max thermique : ΔT = +{fmt(animDeltaTemp, 1)} °C</span>
-                    <span>Modèle : {result.model_name === 'goulot_16' ? 'Auto-Encodeur Goulot 16' : result.model_name}</span>
-                  </div>
-                )}
+              {/* Tableau de Contrôle Qualité 100% Test */}
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2 px-3">Test de Contrôle</th>
+                      <th className="py-2 px-3">Valeur Mesurée</th>
+                      <th className="py-2 px-3">Valeur Seuil</th>
+                      <th className="py-2 px-3">Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono">
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="py-2 px-3 font-medium font-sans text-slate-800">
+                        Erreur Maximale (S_max)
+                      </td>
+                      <td className="py-2 px-3 font-bold text-slate-900">{fmt(scoreMaxActuel, 4)}</td>
+                      <td className="py-2 px-3 text-slate-500">{fmt(customThreshold, 4)}</td>
+                      <td className="py-2 px-3">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            scoreMaxActuel >= customThreshold
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {scoreMaxActuel >= customThreshold ? 'NON CONFORME' : 'CONFORME'}
+                        </span>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="py-2 px-3 font-medium font-sans text-slate-800">
+                        Erreur Moyenne (S_moy)
+                      </td>
+                      <td className="py-2 px-3 font-bold text-slate-900">
+                        {fmt(result.metrics?.score_mean, 4)}
+                      </td>
+                      <td className="py-2 px-3 text-slate-500">
+                        {fmt(result.metrics?.seuil_mean_5fa, 4)}
+                      </td>
+                      <td className="py-2 px-3">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            (result.metrics?.score_mean || 0) >= (result.metrics?.seuil_mean_5fa || 0.1)
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {(result.metrics?.score_mean || 0) >= (result.metrics?.seuil_mean_5fa || 0.1)
+                            ? 'ATTÉNUATION'
+                            : 'CONFORME'}
+                        </span>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="py-2 px-3 font-medium font-sans text-slate-800">
+                        Vérité Terrain (Corrigé)
+                      </td>
+                      <td className="py-2 px-3 font-bold text-slate-900">
+                        {result.ground_truth?.label || 'Image Utilisateur'}
+                      </td>
+                      <td className="py-2 px-3 text-slate-500">
+                        {result.ground_truth?.is_anomaly ? 'Code ≠ 0' : 'Code = 0'}
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                          {result.ground_truth?.is_anomaly === isAnomaly ? 'ACCORD 100%' : 'DISCORDANCE'}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : (
@@ -616,7 +674,7 @@ export default function ThermographyWorkbench() {
               <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3 animate-pulse">
                 AE
               </div>
-              <p className="text-xs font-medium text-slate-700">Aucune analyse active</p>
+              <p className="text-xs font-medium text-slate-700">Aucun calcul actif</p>
               <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
                 Sélectionnez un échantillon ci-contre pour exécuter l'auto-encodeur.
               </p>
@@ -627,4 +685,3 @@ export default function ThermographyWorkbench() {
     </div>
   );
 }
-
