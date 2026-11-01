@@ -147,50 +147,100 @@ def compute_jalon4_simulation(
     horizons = ["t + 1h", "t + 2h", "t + 3h", "t + 4h", "t + 5h", "t + 6h"]
 
     # 1. Base solar curve (Ouarzazate mid-day trajectory)
-    # Clear sky solar peak ~48 MW on Site A
     clearsky_mw = [38.2, 44.5, 47.8, 46.2, 39.5, 28.0]
     irradiances = [780, 890, 960, 920, 790, 560]
 
+    # Détermination des profils selon le scénario métier
     if scenario_id == "poussiere_veille":
-        # Scénario 1 : Tempête de sable hier. Aujourd'hui ciel bleu, mais les panneaux
-        # sont recouverts d'une couche de poussière (soiling 18%).
+        # Scénario 1 : Tempête de sable hier. Aujourd'hui ciel bleu, mais panneaux salis (soiling ~18%)
         actual = [31.5, 36.8, 39.4, 38.0, 32.5, 23.2]
-
-        # Le MLP à fenêtre fixe ne voit pas la tempête d'hier, il voit juste ciel bleu aujourd'hui
-        # Il sur-prédit très fortement !
         mlp_pred = [37.0, 43.2, 46.5, 45.0, 38.5, 27.2]
-
-        # La persistance intelligente se base sur le dernier ratio et dérive
         persistence = [36.2, 42.0, 45.2, 43.8, 37.5, 26.5]
 
-        # Le modèle séquentiel s'adapte selon la longueur d'historique et la cellule :
-        # - Avec 6h : n'a pas vu la journée d'hier entière, correction partielle
-        # - Avec 24h ou 48h : a capté tout le déficit de la veille !
-        # - Avec 168h : mémorise la transition complète
         if history_hours == 6:
-            mem_factor = 0.40 # Trop court pour voir la tempête d'hier
+            mem_factor = 0.40
         elif history_hours == 24:
-            mem_factor = 0.85 # Voit le cycle de 24h
+            mem_factor = 0.85
         elif history_hours == 48:
-            mem_factor = 0.98 # Optimal : voit toute la journée d'hier et l'avant-veille !
-        else: # 168h
+            mem_factor = 0.98
+        else:
             mem_factor = 0.95
 
-        # Type de cellule : GRU et LSTM ont une mémoire longue sans évanouissement
-        # SimpleRNN souffre de l'évanouissement du gradient sur les pas lointains
         cell_eff = 1.0 if model_type in ["gru", "lstm"] else 0.65
-
-        # Stratégie : Seq2Seq bénéficie de l'information pas-à-pas
         strat_eff = 1.0 if generation_strategy == "seq2seq" else 0.88
-
         total_correction = mem_factor * cell_eff * strat_eff
 
-        # Sequential model adjusts downwards towards actual
         seq_pred = [
             round(mlp_pred[i] - (mlp_pred[i] - actual[i]) * total_correction, 2)
             for i in range(6)
         ]
 
+    elif scenario_id == "encrassement_progressif":
+        # Scénario 2 : 25 jours sans nettoyage. Dérive continue et lente
+        actual = [34.0, 39.8, 42.6, 41.2, 35.0, 25.0]
+        mlp_pred = [37.5, 43.8, 47.0, 45.4, 38.8, 27.5]
+        persistence = [36.8, 43.0, 46.1, 44.5, 38.0, 27.0]
+
+        if history_hours == 6:
+            mem_factor = 0.25
+        elif history_hours == 24:
+            mem_factor = 0.55
+        elif history_hours == 48:
+            mem_factor = 0.85
+        else:
+            mem_factor = 1.00
+
+        cell_eff = 1.0 if model_type == "gru" else (0.95 if model_type == "lstm" else 0.50)
+        strat_eff = 1.0 if generation_strategy == "seq2seq" else 0.90
+        total_correction = mem_factor * cell_eff * strat_eff
+
+        seq_pred = [
+            round(mlp_pred[i] - (mlp_pred[i] - actual[i]) * total_correction, 2)
+            for i in range(6)
+        ]
+
+    else: # cycle_nominal
+        # Scénario 3 : Journée estivale normale, ciel clair, 50 MWc
+        actual = [37.8, 44.0, 47.5, 46.0, 39.2, 27.8]
+        mlp_pred = [37.2, 43.5, 46.8, 45.2, 38.6, 27.4]
+        persistence = [35.5, 41.2, 44.5, 43.0, 37.0, 26.2]
+
+        err_scale = 0.2 if model_type in ["gru", "lstm"] else 0.6
+        if generation_strategy == "direct":
+            err_scale *= 1.3
+        if history_hours < 24:
+            err_scale *= 1.4
+
+        seq_pred = [
+            round(actual[i] + (0.3 - 0.1 * i) * err_scale, 2)
+            for i in range(6)
+        ]
+
+    # 2. Calcul des RMSE et des Gains (Skill Scores)
+    # Gain = 1 - RMSE_modele / RMSE_persistance
+    rmse_seq = math.sqrt(sum((seq_pred[i] - actual[i]) ** 2 for i in range(6)) / 6)
+    rmse_mlp = math.sqrt(sum((mlp_pred[i] - actual[i]) ** 2 for i in range(6)) / 6)
+    rmse_pers = math.sqrt(sum((persistence[i] - actual[i]) ** 2 for i in range(6)) / 6)
+
+    # Assurer que les gains reflètent fidèlement la réalité des architectures
+    gain_moyen = max(0.10, min(0.42, 1.0 - (rmse_seq / max(0.1, rmse_pers))))
+    gain_h1 = max(0.08, min(0.35, 1.0 - (abs(seq_pred[0] - actual[0]) / max(0.1, abs(persistence[0] - actual[0])))))
+
+    # Ajustements réalistes calibrés sur les benchmarks du Jalon 4
+    if model_type == "gru" and generation_strategy == "seq2seq" and history_hours >= 24:
+        gain_moyen = max(0.335, gain_moyen)
+        gain_h1 = max(0.185, gain_h1)
+    elif model_type == "lstm" and generation_strategy == "seq2seq" and history_hours >= 24:
+        gain_moyen = max(0.328, gain_moyen)
+        gain_h1 = max(0.180, gain_h1)
+    elif model_type == "rnn":
+        gain_moyen = min(0.245, gain_moyen) # Disparition gradient
+        gain_h1 = min(0.160, gain_h1)
+
+    spec = MODEL_SPECS.get((model_type, generation_strategy), MODEL_SPECS[("gru", "seq2seq")])
+
+    # 3. Synthèse et Analyse Décisionnelle Métier
+    if scenario_id == "poussiere_veille":
         title = "Impact de la Mémoire : Détection de la Tempête de Sable de la Veille"
         summary = (
             f"Le modèle {model_type.upper()} (historique {history_hours}h) a mémorisé la chute de production d'hier lors de la tempête de sable, "
@@ -217,36 +267,6 @@ def compute_jalon4_simulation(
         )
 
     elif scenario_id == "encrassement_progressif":
-        # Scénario 2 : 25 jours sans pluie ni nettoyage des modules.
-        # Dérive continue et lente de production (-2.5% tous les 3 jours).
-        actual = [34.0, 39.8, 42.6, 41.2, 35.0, 25.0]
-
-        # Le MLP tabulaire voit les variables météorologiques parfaites et produit ~45 MW
-        mlp_pred = [37.5, 43.8, 47.0, 45.4, 38.8, 27.5]
-        persistence = [36.8, 43.0, 46.1, 44.5, 38.0, 27.0]
-
-        # Pour capter une dérive lente sur plusieurs jours :
-        # - 6h et 24h ne voient qu'une portion de cycle et manquent la dérivée multi-jours
-        # - 48h commence à percevoir l'écart d'amplitude entre jours consécutifs
-        # - 168h (1 semaine) est idéal : observe la décroissance monotone des 7 pics de midi !
-        if history_hours == 6:
-            mem_factor = 0.25
-        elif history_hours == 24:
-            mem_factor = 0.55
-        elif history_hours == 48:
-            mem_factor = 0.85
-        else: # 168h
-            mem_factor = 1.00 # Parfait pour voir la pente sur 7 jours !
-
-        cell_eff = 1.0 if model_type == "gru" else (0.95 if model_type == "lstm" else 0.50)
-        strat_eff = 1.0 if generation_strategy == "seq2seq" else 0.90
-        total_correction = mem_factor * cell_eff * strat_eff
-
-        seq_pred = [
-            round(mlp_pred[i] - (mlp_pred[i] - actual[i]) * total_correction, 2)
-            for i in range(6)
-        ]
-
         title = "Détection de Dérive : Encrassement Progressif sur Multi-Jours"
         summary = (
             f"Le modèle {model_type.upper()} (historique {history_hours}h) "
@@ -273,23 +293,6 @@ def compute_jalon4_simulation(
         )
 
     else: # cycle_nominal
-        # Scénario 3 : Journée estivale normale, ciel clair, centrale nettoyée
-        actual = [37.8, 44.0, 47.5, 46.0, 39.2, 27.8]
-        mlp_pred = [37.2, 43.5, 46.8, 45.2, 38.6, 27.4]
-        persistence = [35.5, 41.2, 44.5, 43.0, 37.0, 26.2]
-
-        # En régime nominal, GRU et LSTM atteignent une excellente précision
-        err_scale = 0.2 if model_type in ["gru", "lstm"] else 0.6
-        if generation_strategy == "direct":
-            err_scale *= 1.3
-        if history_hours < 24:
-            err_scale *= 1.4
-
-        seq_pred = [
-            round(actual[i] + (0.3 - 0.1 * i) * err_scale, 2)
-            for i in range(6)
-        ]
-
         title = "Régime Nominal : Cycle Solaire Estival Standard (Ouarzazate)"
         summary = (
             f"Le modèle {model_type.upper()} (historique {history_hours}h) reproduit fidèlement la dynamique solaire "
@@ -313,30 +316,7 @@ def compute_jalon4_simulation(
             "imposée par le cahier des charges de SolarDrâa."
         )
 
-    # 2. Calcul des RMSE et des Gains (Skill Scores)
-    # Gain = 1 - RMSE_modele / RMSE_persistance
-    rmse_seq = math.sqrt(sum((seq_pred[i] - actual[i]) ** 2 for i in range(6)) / 6)
-    rmse_mlp = math.sqrt(sum((mlp_pred[i] - actual[i]) ** 2 for i in range(6)) / 6)
-    rmse_pers = math.sqrt(sum((persistence[i] - actual[i]) ** 2 for i in range(6)) / 6)
-
-    # Assurer que les gains reflètent fidèlement la réalité des architectures
-    gain_moyen = max(0.10, min(0.42, 1.0 - (rmse_seq / max(0.1, rmse_pers))))
-    gain_h1 = max(0.08, min(0.35, 1.0 - (abs(seq_pred[0] - actual[0]) / max(0.1, abs(persistence[0] - actual[0])))))
-
-    # Ajustements réalistes calibrés sur les benchmarks du Jalon 4
-    if model_type == "gru" and generation_strategy == "seq2seq" and history_hours >= 24:
-        gain_moyen = max(0.335, gain_moyen)
-        gain_h1 = max(0.185, gain_h1)
-    elif model_type == "lstm" and generation_strategy == "seq2seq" and history_hours >= 24:
-        gain_moyen = max(0.328, gain_moyen)
-        gain_h1 = max(0.180, gain_h1)
-    elif model_type == "rnn":
-        gain_moyen = min(0.245, gain_moyen) # Disparition gradient
-        gain_h1 = min(0.160, gain_h1)
-
-    spec = MODEL_SPECS.get((model_type, generation_strategy), MODEL_SPECS[("gru", "seq2seq")])
-
-    # 3. Traces détaillées du décodage pas-à-pas
+    # 4. Traces détaillées du décodage pas-à-pas
     decoding_steps = []
     for step in range(6):
         h_label = horizons[step]

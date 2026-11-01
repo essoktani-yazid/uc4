@@ -116,11 +116,16 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
             site: 'A',
           }),
         });
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.detail || 'Erreur lors du calcul séquentiel.');
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error('Erreur de communication avec le serveur (réponse non-JSON).');
         }
-        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Erreur lors du calcul séquentiel.');
+        }
         setResult(data);
       } catch (err) {
         setError(err.message);
