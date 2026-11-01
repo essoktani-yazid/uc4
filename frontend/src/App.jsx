@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import Jalon3Results from './Jalon3Results';
 
 const API_BASE = '/api';
 
@@ -247,7 +248,7 @@ export default function App() {
       runSkyPrediction('clear', true);
       runEnrichedPrediction(true);
       runMotionPrediction('incoming_cloud', true);
-      runTransferPrediction('B', true);
+      // Jalon 3 charge ses mesures archivées dans son propre composant.
       runGruPrediction('ete_standard', true);
     } catch (err) {
       console.error(err);
@@ -509,49 +510,6 @@ export default function App() {
     } catch (err) {
       setErrorMessage(err.message);
       addLog('Erreur CNN Mouvement', err.message);
-    } finally {
-      if (!silent) setIsLoading(false);
-    }
-  };
-
-  // 5. Run Transfer Prediction
-  const runTransferPrediction = async (siteOverride = null, isSilent = false) => {
-    const silent = isSilent === true;
-    if (!silent) setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const site = typeof siteOverride === 'string' ? siteOverride : targetSite;
-      const payload = {
-        site: site,
-        tabular: {
-          historique_24h: hist24h,
-          ghi_prevue: ghiPrev,
-          nebulosite_prevue: nebPrev,
-          temperature_prevue: tempPrev,
-          heure_sin: Number(heureSin),
-          heure_cos: Number(heureCos),
-          mois_sin: Number(moisSin),
-          mois_cos: Number(moisCos),
-          jours_depuis_nettoyage: Number(joursNettoyage),
-          capacite_nominale: Number(capaciteNominale),
-        },
-      };
-
-      const res = await fetch(`${API_BASE}/predict/transfer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error((await res.json()).detail || 'Erreur transfert site');
-      const data = await res.json();
-      setTransferResult(data);
-      if (!silent) {
-        addLog('Transfert', `Zero-shot vs Fine-tuned calculé sur Site ${site} (Gain: +${data.gain_transfert_pct}%).`);
-      }
-    } catch (err) {
-      setErrorMessage(err.message);
-      addLog('Erreur Transfert', err.message);
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -1038,7 +996,7 @@ export default function App() {
                       </div>
                       <p className="text-[11px] text-slate-600 mt-1">Façade Atlantique, entrées maritimes et brumes matinales.</p>
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200 text-xs font-mono">
-                        <span className="text-slate-500">Capacité: 30.0 MW</span>
+                        <span className="text-slate-500">Capacité: 20.0 MW</span>
                         <span className="font-bold text-slate-700">24.5 MW actif</span>
                       </div>
                     </div>
@@ -3491,192 +3449,7 @@ export default function App() {
         )}
 
         {/* MODULE 5: Transfert de Site (Jalon 3) */}
-        {activeTab === 'transfer' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
-            {/* Left Controls (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-4">
-              <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div>
-                    <h3 className="font-semibold text-slate-900 text-sm">Adaptation de Domaine (Transfer Learning)</h3>
-                  </div>
-                  <span className="text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">
-                    Jalon 3
-                  </span>
-                </div>
-
-                <div className="mt-4">
-                  <label className="text-xs font-medium text-slate-700 block mb-1.5">Sélecteur de Site Cible</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTargetSite('A');
-                        runTransferPrediction('A', true);
-                      }}
-                      className={`p-2.5 rounded-xl border text-left transition ${
-                        targetSite === 'A'
-                          ? 'bg-teal-50 border-teal-300 ring-2 ring-teal-500/20 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      <span className="font-bold text-xs block text-slate-900">Site A - Désert</span>
-                      <span className="text-[10px] text-slate-500 block mt-0.5">Ouarzazate (Natif, 50 MW)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTargetSite('B');
-                        runTransferPrediction('B', true);
-                      }}
-                      className={`p-2.5 rounded-xl border text-left transition ${
-                        targetSite === 'B'
-                          ? 'bg-teal-50 border-teal-300 ring-2 ring-teal-500/20 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      <span className="font-bold text-xs block text-slate-900">Site B - Littoral</span>
-                      <span className="text-[10px] text-slate-500 block mt-0.5">Tarfaya (Nouveau, 30 MW)</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                  <span className="font-semibold text-slate-800 block mb-1">Caractéristiques du Site Cible :</span>
-                  <ul className="space-y-1 text-slate-600 text-[11px]">
-                    <li>• <span className="font-semibold">Micro-climat côtier</span> : Brumes matinales récurrentes.</li>
-                    <li>• <span className="font-semibold">Désensibilisation thermique</span> : Refroidissement éolien atlantique.</li>
-                    <li>• <span className="font-semibold">Objectif</span> : Vérifier le surcroît de précision du modèle ré-entraîné.</li>
-                  </ul>
-                </div>
-
-                {/* Statut Temps Réel Automatique */}
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-teal-700 font-semibold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Adaptation de domaine en direct
-                  </span>
-                  <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                    Site {targetSite} actif
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Comparison Chart (7 cols) */}
-            <div className="lg:col-span-7 flex flex-col gap-4">
-              <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 flex flex-col justify-between min-h-[380px]">
-                <div>
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div>
-                      <h3 className="font-semibold text-slate-900 text-sm">Comparaison : Zero-Shot vs Fine-Tuned</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Évaluation du bénéfice de l'adaptation sur Site B</p>
-                    </div>
-                    {transferResult && (
-                      <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        Gain Transfert: +{animTransferGain.toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-
-                  {transferResult ? (
-                    <div className="mt-6">
-                      <div className="w-full h-52 relative">
-                        <svg className="w-full h-full overflow-visible" viewBox="0 0 500 160">
-                          {/* Grid */}
-                          {[0, 40, 80, 120].map((y) => (
-                            <line key={y} x1="30" y1={y} x2="490" y2={y} stroke="#e2e8f0" strokeDasharray="3 3" />
-                          ))}
-
-                          {/* Zero-Shot Curve (Amber Dashed) */}
-                          <polyline
-                            fill="none"
-                            stroke="#f59e0b"
-                            strokeWidth="2.5"
-                            strokeDasharray="4 4"
-                            points={animTransferZS
-                              .map((val, idx) => `${50 + idx * 80},${130 - (val / (targetSite === 'B' ? 30.0 : 50.0)) * 120}`)
-                              .join(' ')}
-                          />
-
-                          {/* Fine-Tuned Curve (Emerald Solid) */}
-                          <polyline
-                            fill="none"
-                            stroke="#059669"
-                            strokeWidth="3.5"
-                            strokeLinecap="round"
-                            points={animTransferFT
-                              .map((val, idx) => `${50 + idx * 80},${130 - (val / (targetSite === 'B' ? 30.0 : 50.0)) * 120}`)
-                              .join(' ')}
-                          />
-
-                          {/* Points */}
-                          {animTransferFT.map((val, idx) => {
-                            const cx = 50 + idx * 80;
-                            const cy = 130 - (val / (targetSite === 'B' ? 30.0 : 50.0)) * 120;
-                            return (
-                              <g key={idx}>
-                                <circle cx={cx} cy={cy} r="4.5" fill="#059669" stroke="#ffffff" strokeWidth="2" />
-                                <text
-                                  x={cx}
-                                  y={cy - 9}
-                                  fontSize="10"
-                                  fontWeight="bold"
-                                  fontFamily="monospace"
-                                  fill="#0f172a"
-                                  textAnchor="middle"
-                                >
-                                  {val.toFixed(1)} MW
-                                </text>
-                                <text x={cx} y="152" fontSize="10" fontFamily="sans-serif" fill="#64748b" textAnchor="middle">
-                                  t+{idx + 1}h
-                                </text>
-                              </g>
-                            );
-                          })}
-                        </svg>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-6 mt-4 pt-3 border-t border-slate-100 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="w-3.5 h-1 bg-emerald-600 rounded-full" />
-                          <span className="text-slate-800 font-semibold">Modèle Fine-Tuned (Ajusté Site B)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-3.5 h-0.5 border-t border-dashed border-amber-500" />
-                          <span className="text-slate-500">Zero-Shot (Modèle Natif A)</span>
-                        </div>
-                      </div>
-
-                      {/* Error stats */}
-                      <div className="grid grid-cols-2 gap-3 mt-4">
-                        <div className="p-2.5 rounded-lg bg-amber-50/60 border border-amber-200 text-center">
-                          <span className="text-[10px] text-amber-700 block font-medium">RMSE Zero-Shot</span>
-                          <span className="font-mono text-sm font-bold text-amber-900 mt-0.5 block">{animTransferRMSEZS.toFixed(2)} MW</span>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200 text-center">
-                          <span className="text-[10px] text-emerald-700 block font-medium">RMSE Fine-Tuned</span>
-                          <span className="font-mono text-sm font-bold text-emerald-900 mt-0.5 block">{animTransferRMSEFT.toFixed(2)} MW</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="py-16 flex flex-col items-center justify-center text-center">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-mono text-xs font-bold mb-3">
-                        A/B
-                      </div>
-                      <p className="text-xs font-medium text-slate-700">Aucune évaluation de transfert exécutée</p>
-                      <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
-                        Comparez les erreurs entre le modèle natif appliqué sans retouche et le modèle ajusté.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {activeTab === 'transfer' && <Jalon3Results />}
 
         {/* MODULE 6: Séries Temporelles (Encodeur-Décodeur GRU - Jalon 4) */}
         {activeTab === 'gru' && (
@@ -3974,4 +3747,5 @@ export default function App() {
     </div>
   );
 }
+
 

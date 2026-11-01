@@ -690,49 +690,19 @@ def predict_motion(req: MotionPredictRequest):
 
 
 # 5. Page 5 : Transfert de Site (Jalon 3)
-@app.post("/api/predict/transfer", response_model=TransferPredictResponse)
+@app.post("/api/predict/transfer")
 def predict_transfer(req: TransferPredictRequest):
-    if "siteA_depart" not in MODELS or "siteB_ft" not in MODELS or "base" not in SCALERS:
-        raise HTTPException(status_code=503, detail="Modèles de transfert non chargés.")
+    raise HTTPException(status_code=410, detail="Ancienne simulation retirée : consulter /api/jalon3/results pour les résultats vérifiés du notebook final.")
 
-    raw_47 = np.concatenate([
-        np.array(req.tabular.historique_24h, dtype="float32"),
-        np.array(req.tabular.ghi_prevue, dtype="float32"),
-        np.array(req.tabular.nebulosite_prevue, dtype="float32"),
-        np.array(req.tabular.temperature_prevue, dtype="float32"),
-        np.array([req.tabular.heure_sin, req.tabular.heure_cos, req.tabular.mois_sin, req.tabular.mois_cos], dtype="float32"),
-        np.array([req.tabular.jours_depuis_nettoyage], dtype="float32"),
-    ]).reshape(1, -1)
 
-    scaled_47 = SCALERS["base"].transform(raw_47)
-
-    # 1. Zero-shot model (Site A native applied directly on target site)
-    pred_zs = MODELS["siteA_depart"].predict(scaled_47, verbose=0)[0]
-    
-    # 2. Fine-tuned model (adapted to Site B microclimate: sea fog, humidity, different thermal coeff)
-    pred_ft = MODELS["siteB_ft"].predict(scaled_47, verbose=0)[0]
-
-    cap = 50.0 if req.site == "A" else 30.0 # Site B capacity ~30 MW
-    zs_mw = [round(float(max(0.0, v * cap)), 2) for v in pred_zs]
-    ft_mw = [round(float(max(0.0, v * cap)), 2) for v in pred_ft]
-
-    ecart_moyen = round(float(np.mean([abs(z - f) for z, f in zip(zs_mw, ft_mw)])), 2)
-    rmse_zs = 4.82 if req.site == "B" else 2.45
-    rmse_ft = 3.10 if req.site == "B" else 2.38
-    gain_transfert = round(float((1 - (rmse_ft / rmse_zs)) * 100.0), 1)
-
-    return TransferPredictResponse(
-        site_source="Site A (Centrale Désertique Ouarzazate)",
-        site_cible=f"Site {req.site} ({'Littoral Atlantique Tarfaya' if req.site == 'B' else 'Désert'})",
-        previsions_zeroshot_mw=zs_mw,
-        previsions_finetuned_mw=ft_mw,
-        ecart_moyen_mw=ecart_moyen,
-        rmse_zeroshot=rmse_zs,
-        rmse_finetuned=rmse_ft,
-        gain_transfert_pct=gain_transfert,
-        horizons=["t + 1h", "t + 2h", "t + 3h", "t + 4h", "t + 5h", "t + 6h"],
-        remarque="Le modèle Fine-Tuned compense la brume côtière matinale et la désensibilisation thermique de Site B.",
-    )
+@app.get("/api/jalon3/results")
+def jalon3_results():
+    from backend.jalon3_results import load_results
+    try:
+        return load_results(Path(__file__).resolve().parent.parent)
+    except (OSError, ValueError, KeyError) as exc:
+        logger.exception("Résultats Jalon 3 indisponibles")
+        raise HTTPException(status_code=503, detail="Résultats Jalon 3 indisponibles ou invalides.") from exc
 
 
 # 6. Page 6 : Séries Temporelles (Encodeur-Décodeur GRU - Jalon 4)
@@ -812,3 +782,4 @@ if FRONTEND_DIST.exists():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
