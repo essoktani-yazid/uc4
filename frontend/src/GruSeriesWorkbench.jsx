@@ -196,6 +196,8 @@ export default function GruSeriesWorkbench({ capaciteNominale = 50.0 }) {
   const animRmseSeq = useAnimatedNumber(result?.rmse_sequential ?? 0.81, 650, 2);
   const animRmseMlp = useAnimatedNumber(result?.rmse_mlp ?? 4.12, 650, 2);
 
+  const cap = capaciteNominale || 50.0;
+
   return (
     <div className="space-y-4 animate-tab-enter">
 
