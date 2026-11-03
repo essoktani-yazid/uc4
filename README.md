@@ -133,17 +133,23 @@ Assurez-vous de disposer des versions suivantes sur votre environnement :
    cd uc4
    ```
 
-2. **Lancement automatique tout-en-un (Recommandé)**
-   Exécutez le script d'orchestration situé à la racine du projet :
-   ```bash
-   chmod +x start.sh stop.sh
-   ./start.sh
-   ```
-   Ce script assure automatiquement :
-   - L'activation de l'environnement virtuel Python
-   - Le démarrage du backend FastAPI sur `http://localhost:8000`
-   - Le démarrage du frontend Vite React sur `http://localhost:5173`
-   - L'ouverture d'un tunnel Cloudflare sécurisé générant une URL publique accessible depuis l'extérieur
+2. **Lancement automatique (Deux modes disponibles)**
+   
+   - **Mode Détaché / Arrière-plan (Daemon `-d`) :**
+     Idéal pour laisser tourner l'application en tâche de fond même après fermeture du terminal :
+     ```bash
+     chmod +x start.sh start-daemon.sh stop.sh
+     ./start.sh -d
+     # ou directement : ./start-daemon.sh
+     ```
+     Les journaux d'exécution sont consultables en continu via `tail -f logs/backend.log` et `tail -f logs/frontend.log`.
+
+   - **Mode Premier Plan (Interactif) :**
+     ```bash
+     ./start.sh
+     ```
+
+   Ces scripts assurent automatiquement l'activation du venv Python, le lancement de FastAPI (port 8000), de Vite React (port 5173) et l'ouverture du tunnel Cloudflare avec lien public sécurisé.
 
 3. **Lancement manuel séparé (Alternative)**
 
@@ -239,7 +245,8 @@ curl -X POST http://localhost:8000/api/predict/tabular \
 │   ├── ARCHITECTURE.md       # Architecture système, flux Mermaid et conception
 │   ├── API.md                # Référence complète des endpoints REST
 │   └── screens/              # Captures d'écran haute définition de l'interface
-├── start.sh                  # Script de démarrage unifié (FastAPI + Vite + Cloudflare Tunnel)
+├── start.sh                  # Script de démarrage unifié (mode interactif ou -d)
+├── start-daemon.sh           # Script de démarrage en arrière-plan (mode détaché / daemon)
 ├── stop.sh                   # Script d'arrêt propre des processus d'arrière-plan
 ├── LICENSE                   # Licence logicielle MIT
 └── README.md                 # Documentation principale

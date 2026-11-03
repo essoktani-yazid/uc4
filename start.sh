@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Support du mode détaché / daemon via l'argument -d
+if [[ "$1" == "-d" || "$1" == "--daemon" || "$1" == "-b" || "$1" == "--background" ]]; then
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/start-daemon.sh"
+fi
+
 # ==============================================================================
 # SolarDrâa - Script de démarrage complet
 # Démarre Backend (FastAPI), Frontend (Vite/React) et Tunnel Cloudflare (Accès Public)
@@ -16,10 +21,11 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-echo "☀️  Démarrage de SolarDrâa..."
+echo "☀️  Démarrage de SolarDrâa (mode premier plan)..."
+echo "💡 Note : Pour démarrer en arrière-plan, utilisez ./start.sh -d ou ./start-daemon.sh"
 
 # Répertoire racine du projet
-PROJECT_ROOT="/home/yazid/Desktop/UC4"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_ROOT" || exit 1
 
 # 1. Démarrage du Backend FastAPI
