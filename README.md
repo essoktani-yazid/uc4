@@ -276,7 +276,16 @@ Les contributions, suggestions d'amélioration et signalements de bugs sont les 
 
 ---
 
-## Auteur
+## Équipe du Projet
+
+Ce projet a été conçu et développé en collaboration par :
+- **MAKKAOUI Imane** — [`mekkaouiimane722@gmail.com`](mailto:mekkaouiimane722@gmail.com)
+- **ESSOKTANI Yazid** — [`essoktani.yazid@gmail.com`](mailto:essoktani.yazid@gmail.com)
+- **DOUYRY Ahmed** — [`ahmed.douyry@gmail.com`](mailto:ahmed.douyry@gmail.com)
+
+---
+
+## Auteur & Référent Technique
 
 <div align="center">
 
