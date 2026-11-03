@@ -5,7 +5,9 @@ from pathlib import Path
 
 
 def load_results(root: Path):
-    results = root / 'Jalon 3 : Un nouveau site, deux tâches' / 'results'
+    results = root / 'data' / 'jalon3_results'
+    if not results.exists():
+        results = Path(__file__).resolve().parent.parent / 'data' / 'jalon3_results'
 
     def read(relative):
         with (results / relative).open(encoding='utf-8-sig', newline='') as stream:

@@ -1,0 +1,6 @@
+{
+  "model": "dropout_0.2",
+  "lambda": 0.3,
+  "criterion": "MAE validation B",
+  "seed": 42
+}

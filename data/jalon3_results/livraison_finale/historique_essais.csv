@@ -1,0 +1,17 @@
+jalon,model,source,lr,loss,epochs,seconds,MAEoccultation,statut,campagne,partition,lambda,repeatB,augment,MAEcoverage,calibration,MAE_selection,n_calibration,n_selection
+3,B_existant,B,0.0,archive,0.0,0.0,0.0764971673488617,réussi,ajustements,validation,,,,,,,,
+3,A_degele_mse_3e5,A,3e-05,mse,21.0,4.307823169999892,0.0767772346735,réussi,ajustements,validation,,,,,,,,
+3,B_degele_mse_3e5,B,3e-05,mse,21.0,4.436529457999995,0.0776669830083847,réussi,ajustements,validation,,,,,,,,
+3,B_degele_mse_1e4,B,0.0001,mse,17.0,3.334984896999913,0.0763356164097786,réussi,ajustements,validation,,,,,,,,
+3,B_degele_mae_3e5,B,3e-05,mae,14.0,3.1502372319998813,0.0841705501079559,réussi,ajustements,validation,,,,,,,,
+3,B_degele_mae_1e5,B,1e-05,mae,15.0,2.91817588799995,0.0845988020300865,réussi,ajustements,validation,,,,,,,,
+3,B_initial,,,,0.0,0.0,0.0764971673488617,réussi,mixte,validation,0.0,,,,,,,
+3,mix_B4_lam0,,0.0001,,24.0,15.44614437400014,0.0755806788802146,réussi,mixte,validation,0.0,4.0,False,,,,,
+3,mix_B4_lam01,,0.0001,,24.0,14.363363340999967,0.0742787569761276,réussi,mixte,validation,0.1,4.0,False,0.1087384670972824,,,,
+3,mix_B4_lam03,,0.0001,,13.0,8.304824774000053,0.0753713548183441,réussi,mixte,validation,0.3,4.0,False,0.189794436097145,,,,
+3,mix_B4_lam1,,0.0001,,17.0,10.283828273000154,0.0803504511713981,réussi,mixte,validation,1.0,4.0,False,0.0887713283300399,,,,
+3,mix_B8_lam03,,0.0003,,17.0,15.143607400000064,0.0740721225738525,réussi,mixte,validation,0.3,8.0,False,0.0767237842082977,,,,
+3,mix_B4_lam03_photo,,0.0001,,13.0,8.694879522000065,0.0775455236434936,réussi,mixte,validation,0.3,4.0,True,0.1940471678972244,,,,
+3,,,,,,,,,calibration,validation,,,,,identite,0.0485941208899021,176.0,176.0
+3,,,,,,,,,calibration,validation,,,,,affine,0.0785248577594757,176.0,176.0
+3,,,,,,,,,calibration,validation,,,,,isotone,0.062474999576807,176.0,176.0

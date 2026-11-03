@@ -13,28 +13,27 @@ from pydantic import BaseModel, Field
 
 router = APIRouter(prefix='/api/jalon3')
 ROOT = Path(__file__).resolve().parent.parent
-JALON = ROOT / 'Jalon 3 : Un nouveau site, deux tâches'
+MODELS_DIR = ROOT / 'models'
 
 
 @lru_cache(maxsize=1)
 def resources():
-    spec = importlib.util.spec_from_file_location('uc4_final_tools', JALON / 'outils_ajouts.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    module.DATA = ROOT / 'data'
-    return module
+    from backend import jalon3_tools
+    jalon3_tools.DATA = ROOT / 'data'
+    jalon3_tools.MODELS = MODELS_DIR
+    return jalon3_tools
 
 
 @lru_cache(maxsize=6)
 def model(name):
     from tensorflow import keras
-    return keras.models.load_model(JALON / 'models' / name, compile=False)
+    return keras.models.load_model(MODELS_DIR / name, compile=False)
 
 
 @lru_cache(maxsize=1)
 def examples():
     import joblib
-    return resources().load_examples('B'), joblib.load(JALON / 'models/ajout_j1_scaler.joblib')
+    return resources().load_examples('B'), joblib.load(MODELS_DIR / 'ajout_j1_scaler.joblib')
 
 
 @lru_cache(maxsize=2)

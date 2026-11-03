@@ -1,0 +1,3 @@
+jalon,model,dropout,lambda,MAEoccultation_validation_B,MAEcoverage_validation_B,epochs_A,epochs_B,seconds,statut
+3,dropout_0.0,0.0,0.3,0.07094729691743851,0.036719754338264465,60,21,58.633870680000655,réussi
+3,dropout_0.2,0.2,0.3,0.05328432098031044,0.054979100823402405,60,26,56.8989290479999,réussi

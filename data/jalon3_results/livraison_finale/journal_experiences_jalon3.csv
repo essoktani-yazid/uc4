@@ -1,0 +1,12 @@
+model,trainableParams,gain1h,gain6h,gainMean,rmse1hMW,jalon,experiment,partition,origine,lambda,MAEoccultation,MAEcoverage,epochs,dropout,MAEoccultation_validation_B,MAEcoverage_validation_B,epochs_A,epochs_B,seconds,statut
+A_direct,5350.0,0.0707862377166748,0.3476685881614685,0.2336145192384719,1.6191704273223877,3,transfert,validation,campagne executee archivee,,,,,,,,,,,
+B_seul,5350.0,-0.1461588144302368,0.321313738822937,0.1615923047065735,1.9972007274627688,3,transfert,validation,campagne executee archivee,,,,,,,,,,,
+ajustement_complet,5350.0,0.1052520275115966,0.3647831082344055,0.2664136588573456,1.5591132640838623,3,transfert,validation,campagne executee archivee,,,,,,,,,,,
+une_couche_gelee,2278.0,0.0891039967536926,0.3580759763717651,0.2511947751045227,1.5872514247894287,3,transfert,validation,campagne executee archivee,,,,,,,,,,,
+deux_couches_gelees,198.0,0.0819091200828552,0.3532817363739013,0.2411489486694336,1.5997886657714844,3,transfert,validation,campagne executee archivee,,,,,,,,,,,
+,,,,,,3,lambda_CNN_A,validation,campagne executee archivee,0.0,0.0600124970078468,0.3488425314426422,70.0,,,,,,,
+,,,,,,3,lambda_CNN_A,validation,campagne executee archivee,0.3,0.0729584917426109,0.0381919927895069,70.0,,,,,,,
+,,,,,,3,lambda_CNN_A,validation,campagne executee archivee,1.0,0.074775330722332,0.0296344049274921,70.0,,,,,,,
+,,,,,,3,lambda_CNN_A,validation,campagne executee archivee,3.0,0.0648337677121162,0.0251531973481178,70.0,,,,,,,
+dropout_0.0,,,,,,3,dropout_CNN_B,validation,campagne executee archivee,0.3,,,,0.0,0.0709472969174385,0.0367197543382644,60.0,21.0,58.633870680000655,réussi
+dropout_0.2,,,,,,3,dropout_CNN_B,validation,campagne executee archivee,0.3,,,,0.2,0.0532843209803104,0.0549791008234024,60.0,26.0,56.8989290479999,réussi

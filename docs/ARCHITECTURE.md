@@ -129,23 +129,25 @@ sequenceDiagram
 
 La plateforme stocke et manipule trois catégories d'actifs :
 
-### 1. Séries Temporelles Tabulaires (`data/*.csv`)
+### 1. Séries Temporelles & Données Tabulaires (`data/*.csv` & `data/jalon3_results/`)
 - **`uc4_siteA.csv` :** 26 304 observations horaires (3 années complètes) issues de la centrale d'Ouarzazate (50 MWc) comprenant :
   - Variables solaires calculées : Hauteur du soleil, azimut, zénith, $GHI_{ciel\_clair}$.
   - Variables météorologiques mesurées et prévues : $GHI$, température ambiante, nébulosité prévue.
   - Exploitation : Jours écoulés depuis le dernier nettoyage des panneaux et production réelle en MW.
 - **`uc4_siteB.csv` :** Données chronologiques de la centrale côtière de Tarfaya (20 MWc) soumise à des régimes d'humidité et brouillards distincts.
+- **`data/jalon3_results/` :** Bilans de validation, matrices d'erreurs par horizon et comparatifs des stratégies de transfert ($A \rightarrow B$).
 
 ### 2. Tenseurs Matriciels Compressés (`data/*.npz`)
 - **`uc4_ciel_A.npz` & `uc4_ciel_B.npz` :** Échantillons d'images plein ciel associant les labels de couverture nuageuse et les timestamps.
 - **`uc4_thermographie.npz` :** Végétation d'images infrarouges de modules solaires au format $64 \times 64$ pixels étiquetées selon 5 classes de référence (sain, fissure, déconnexion, point chaud, salissure).
 
-### 3. Poids de Réseaux de Neurones (`models/*.keras` & `*.pkl`)
+### 3. Poids de Réseaux de Neurones (`models/*.keras` & `*.pkl`, `*.joblib`)
 - **`mlp_base.keras` & `mlp_enrichi.keras` :** Réseaux entièrement connectés avec régularisation Dropout (0.2) et activation ReLU.
 - **`modele_ciel.keras` & `cnn_mouvement.keras` :** Réseaux convolutifs avec couches Conv2D, MaxPooling et BatchNorm.
+- **`ajout_j3_transfert.keras` & `j3_cnn_B_simple.keras` :** Réseaux affinés pour l'adaptation de domaine vers le Site B (Tarfaya).
 - **`autoencodeur_goulot_16.keras` :** Encodeur convolutif réduisant l'image en un vecteur de 16 flottants avant décodage miroir.
 - **`encdec_gru.keras` :** Réseau récurrent Sequence-to-Sequence (cellules GRU) adapté aux horizons de prévision glissants.
-- **`scaler_base.pkl` & `scaler_enrichi.pkl` :** Objets `StandardScaler` sérialisés calibrés sur l'ensemble d'entraînement.
+- **`scaler_base.pkl`, `scaler_enrichi.pkl` & `ajout_j1_scaler.joblib` :** Objets de normalisation Scikit-Learn calibrés.
 
 ---
 

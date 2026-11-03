@@ -202,6 +202,7 @@ curl -X POST http://localhost:8000/api/predict/tabular \
 │   ├── main.py               # Routes d'API REST, modèles Pydantic et instanciation FastAPI
 │   ├── jalon3_results.py     # Métriques et analyses comparatives de validation
 │   ├── jalon3_testing.py     # Moteur de test interactif pour le transfert de site B
+│   ├── jalon3_tools.py       # Prétraitements solaires et préparation des matrices de test
 │   ├── jalon4_service.py     # Service de prévision séquentielle récurrente GRU
 │   ├── thermography.py       # Détection d'anomalies infrarouges par autoencodeur
 │   ├── requirements.txt      # Dépendances Python (FastAPI, TensorFlow, Keras, etc.)
@@ -222,12 +223,15 @@ curl -X POST http://localhost:8000/api/predict/tabular \
 │   ├── uc4_siteB.csv         # Série temporelle météo & production Site B (20 MWc)
 │   ├── uc4_ciel_A.npz        # Images caméra ciel Site A
 │   ├── uc4_ciel_B.npz        # Images caméra ciel Site B
-│   └── uc4_thermographie.npz # Échantillons thermographiques de panneaux photovoltaïques
+│   ├── uc4_thermographie.npz # Échantillons thermographiques de panneaux photovoltaïques
+│   └── jalon3_results/       # Résultats d'évaluation et bilans de transfert du Site B
 ├── models/                   # Poids des réseaux de neurones Keras et scalers
 │   ├── mlp_base.keras        # Modèle tabulaire standard MLP Site A
 │   ├── mlp_enrichi.keras     # Modèle tabulaire enrichi (horizons et angles solaires)
 │   ├── modele_ciel.keras     # Classificateur CNN de nébulosité all-sky
 │   ├── cnn_mouvement.keras   # Estimateur CNN de dynamique des nuages
+│   ├── ajout_j3_transfert.keras # Modèle affiné par transfert sur le Site B (Tarfaya)
+│   ├── j3_cnn_B_simple.keras # Classificateur CNN vision spécifique au Site B
 │   ├── autoencodeur_goulot_16.keras # Autoencodeur 16 dimensions pour détection de défauts
 │   ├── encdec_gru.keras      # Modèle Encodeur-Décodeur récurrent GRU
 │   └── scaler_base.pkl       # Scalers normalisateurs Scikit-Learn

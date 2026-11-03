@@ -1,0 +1,4 @@
+Critère,Résultat,Cible,Atteinte
+Gain moyen production B,0.331874817609787,">=0,27",True
+MAE occultation A,0.047066736966371536,"<=0,10",True
+MAE occultation B,0.07801152020692825,"<=0,10",True
